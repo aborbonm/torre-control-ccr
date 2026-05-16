@@ -26,14 +26,7 @@
   #file-picker.hidden{display:none;}
   .picker-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:44px 52px;text-align:center;max-width:420px;}
   .picker-card h2{font-size:20px;font-weight:800;margin-bottom:8px;}
-  .picker-card p{font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.6;}
-  .drop-zone{border:2px dashed var(--border);border-radius:12px;padding:30px 24px;cursor:pointer;transition:all .2s;margin-bottom:18px;}
-  .drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);background:rgba(0,212,255,.04);}
-  .drop-icon{font-size:30px;margin-bottom:8px;}
-  .drop-zone p{font-size:13px;color:var(--muted);font-family:var(--mono);}
-  .drop-zone strong{color:var(--accent);}
-  input[type=file]{display:none;}
-  .hint{font-size:11px;color:var(--muted);font-family:var(--mono);}
+  .picker-card p{font-size:13px;color:var(--muted);margin-bottom:0;line-height:1.6;}
 
   header{padding:20px 40px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:linear-gradient(90deg,#0a0e1a,#0d1424);position:sticky;top:0;z-index:100;}
   .logo{display:flex;align-items:center;gap:14px;}
@@ -140,20 +133,14 @@
 
 <div id="loader" class="hidden">
   <div class="spinner"></div>
-  <p>Leyendo Excel...</p>
+  <p>Cargando datos...</p>
 </div>
 
 <div id="file-picker">
   <div class="picker-card">
     <div style="font-size:38px;margin-bottom:12px">🗼</div>
     <h2>Torre de Control CCR</h2>
-    <p>Selecciona el archivo <strong style="color:var(--accent)">torre_de_control_CCR.xlsx</strong> desde la carpeta compartida para cargar el dashboard.</p>
-    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-      <div class="drop-icon">📂</div>
-      <p><strong>Haz clic para seleccionar</strong><br>o arrastra el archivo aquí</p>
-    </div>
-    <input type="file" id="file-input" accept=".xlsx,.xls">
-    <p class="hint">El archivo se lee localmente — nunca se sube a ningun servidor.<br>La proxima vez se cargara automaticamente desde la cache del navegador.</p>
+    <p style="color:var(--red);font-family:var(--mono);font-size:12px;margin-bottom:0">No se pudo cargar el archivo de datos.<br>Verifica tu conexión e intenta recargar la página.</p>
   </div>
 </div>
 
@@ -169,7 +156,7 @@
     <div class="pulse"></div>
     <div class="date-chip" id="fecha-chip">—</div>
     <div id="cache-chip" style="display:none;font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);padding:4px 10px;border-radius:100px;" title=""></div>
-    <button class="reload-btn" onclick="document.getElementById('file-input').click()">&#x21BA; Actualizar Excel</button>
+    <button class="reload-btn" onclick="fetchExcel(true)">&#x21BA; Actualizar Excel</button>
     <button class="reload-btn" id="clear-cache-btn" style="display:none;color:var(--red);border-color:rgba(239,68,44,.3)" onclick="clearCache()">x Limpiar cache</button>
   </div>
 </header>
@@ -332,6 +319,7 @@ function showTab(id, el) {
 
 // ── IndexedDB cache ──
 const DB_NAME = 'TorreControlCCR', DB_STORE = 'excel', DB_KEY = 'file';
+const EXCEL_URL = 'https://raw.githubusercontent.com/aborbonm/torre-control-ccr/main/torre_de_control_CCR.xlsx';
 
 function openDB() {
   return new Promise((res, rej) => {
@@ -342,13 +330,13 @@ function openDB() {
   });
 }
 
-async function saveToCache(bytes, fileName) {
+async function saveToCache(bytes, ts) {
   try {
     const copy = new Uint8Array(bytes).slice(0);
     const db = await openDB();
     await new Promise((res, rej) => {
       const tx = db.transaction(DB_STORE, 'readwrite');
-      tx.objectStore(DB_STORE).put({ data: copy, name: fileName, ts: Date.now() }, DB_KEY);
+      tx.objectStore(DB_STORE).put({ data: copy, ts: ts }, DB_KEY);
       tx.oncomplete = res;
       tx.onerror = () => rej(tx.error);
     });
@@ -378,73 +366,74 @@ async function clearCache() {
   } catch(e) {}
   document.getElementById('cache-chip').style.display = 'none';
   document.getElementById('clear-cache-btn').style.display = 'none';
-  document.getElementById('file-picker').classList.remove('hidden');
 }
 
-function showCacheChip(ts, name) {
+function showCacheChip(ts) {
   const chip = document.getElementById('cache-chip');
   const d = new Date(ts);
-  const lbl = d.toLocaleDateString('es-CR',{day:'2-digit',month:'short',year:'numeric'})
-            + ' ' + d.toLocaleTimeString('es-CR',{hour:'2-digit',minute:'2-digit'});
-  chip.textContent = 'Cache: ' + lbl;
+  const lbl = d.toLocaleDateString('es-CR', {day:'2-digit', month:'short', year:'numeric'})
+            + ' ' + d.toLocaleTimeString('es-CR', {hour:'2-digit', minute:'2-digit'});
+  chip.textContent = 'Datos: ' + lbl;
   chip.style.display = 'inline-flex';
-  chip.title = name + ' | ' + lbl;
+  chip.title = 'Ultima actualizacion: ' + lbl + ' | Haz clic en Actualizar para refrescar.';
   document.getElementById('clear-cache-btn').style.display = 'inline-flex';
 }
 
-// ── File loading ──
-document.getElementById('file-input').addEventListener('change', e => {
-  if (e.target.files[0]) loadFile(e.target.files[0]);
-  e.target.value = '';
-});
-const dz = document.getElementById('drop-zone');
-dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
-dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
-dz.addEventListener('drop', e => {
-  e.preventDefault(); dz.classList.remove('drag-over');
-  const f = e.dataTransfer.files[0];
-  if (f) loadFile(f);
-});
-
-function loadFile(file) {
+async function fetchExcel(forceRefresh) {
   document.getElementById('loader').classList.remove('hidden');
-  const reader = new FileReader();
-  reader.onload = async ev => {
-    try {
-      const bytes = new Uint8Array(ev.target.result);
-      const wb = XLSX.read(bytes, { type: 'array', cellDates: true });
-      renderAll(wb);
-      document.getElementById('file-picker').classList.add('hidden');
-      await saveToCache(bytes, file.name);
-      showCacheChip(Date.now(), file.name);
-    } catch(err) {
-      alert('Error leyendo el archivo: ' + err.message);
+  // Try cache first (unless forced refresh)
+  if (!forceRefresh) {
+    const cached = await getFromCache();
+    if (cached && cached.data) {
+      try {
+        const wb = XLSX.read(cached.data, { type: 'array', cellDates: true });
+        renderAll(wb);
+        document.getElementById('file-picker').classList.add('hidden');
+        showCacheChip(cached.ts);
+        document.getElementById('loader').classList.add('hidden');
+        // Fetch fresh in background and update if different
+        fetchAndUpdate();
+        return;
+      } catch(e) {
+        console.warn('Cache invalida:', e);
+        await clearCache();
+      }
     }
-    document.getElementById('loader').classList.add('hidden');
-  };
-  reader.onerror = () => {
-    alert('No se pudo leer el archivo.');
-    document.getElementById('loader').classList.add('hidden');
-  };
-  reader.readAsArrayBuffer(file);
+  }
+  // No cache or forced refresh — fetch directly
+  await fetchAndUpdate();
+  document.getElementById('loader').classList.add('hidden');
 }
 
-// ── Auto-cargar desde cache al abrir ──
-(async function initFromCache() {
-  const cached = await getFromCache();
-  if (!cached || !cached.data) return;
-  document.getElementById('loader').classList.remove('hidden');
+async function fetchAndUpdate() {
   try {
-    const wb = XLSX.read(cached.data, { type: 'array', cellDates: true });
+    const res = await fetch(EXCEL_URL + '?t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const buf = await res.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    const wb = XLSX.read(bytes, { type: 'array', cellDates: true });
+    const ts = Date.now();
     renderAll(wb);
     document.getElementById('file-picker').classList.add('hidden');
-    showCacheChip(cached.ts, cached.name || 'torre_de_control_CCR.xlsx');
+    document.getElementById('loader').classList.add('hidden');
+    showCacheChip(ts);
+    await saveToCache(bytes, ts);
   } catch(err) {
-    console.warn('Cache invalida, se elimina:', err);
-    await clearCache();
+    console.error('Error cargando Excel:', err);
+    // If we had cached data, keep it shown — just warn
+    const cached = await getFromCache();
+    if (!cached) {
+      document.getElementById('file-picker').classList.remove('hidden');
+      document.getElementById('loader').classList.add('hidden');
+    } else {
+      // Already rendered from cache, just log
+      document.getElementById('loader').classList.add('hidden');
+    }
   }
-  document.getElementById('loader').classList.add('hidden');
-}());
+}
+
+// ── Iniciar carga al abrir la pagina ──
+fetchExcel(false);
 
 // ── Utilities ──
 function getSheet(wb, keyword) {
