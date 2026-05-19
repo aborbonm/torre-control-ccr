@@ -123,6 +123,16 @@
   .log-tab{font-family:var(--mono);font-size:11px;color:var(--accent2);min-width:130px;}
   .log-op{font-family:var(--mono);font-size:11px;color:var(--accent);min-width:75px;}
 
+  .pmr-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  .pmr-card-head{padding:14px 18px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .pmr-prog{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--accent);}
+  .pmr-body{padding:14px 18px;display:flex;flex-direction:column;gap:10px;}
+  .pmr-section-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;}
+  .pmr-text{font-size:12px;line-height:1.6;color:var(--text);}
+  .pmr-cal-row{display:flex;align-items:center;gap:10px;}
+  .pmr-indicator{display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;min-width:72px;}
+  .pmr-ind-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;color:var(--muted);letter-spacing:.05em;text-align:center;}
+  .pmr-ind-value{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text);}
   @media(max-width:900px){
     header{padding:14px 18px;}nav{padding:10px 18px 0;}main{padding:16px 18px;}
     .stat-row{grid-template-columns:repeat(2,1fr);}
@@ -168,6 +178,7 @@
   <div class="tab" onclick="showTab('productos',this)">Productos Críticos</div>
   <div class="tab" onclick="showTab('equipo',this)">Equipo</div>
   <div class="tab" onclick="showTab('documentos',this)">Documentos</div>
+  <div class="tab" onclick="showTab('pmr',this)">PMR</div>
   <div class="tab" onclick="showTab('changelog',this)">Change Log <span class="badge badge-blue" id="badge-cl">—</span></div>
 </nav>
 
@@ -247,6 +258,22 @@
       <thead id="docs-head"></thead>
       <tbody id="t-docs"></tbody>
     </table></div>
+  </div>
+
+  <div id="pmr" class="panel">
+    <div class="section-head"><h2>PMR — Ciclo I-2026</h2></div>
+    <div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:20px;">Con corte de datos a diciembre 2025</div>
+
+    <!-- KPI chips por calificación -->
+    <div class="stat-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+      <div class="stat-card green"><div class="stat-label">Satisfactorio</div><div class="stat-value" id="pmr-sat">—</div></div>
+      <div class="stat-card yellow"><div class="stat-label">Alerta</div><div class="stat-value" id="pmr-ale">—</div></div>
+      <div class="stat-card red"><div class="stat-label">Problema</div><div class="stat-value" id="pmr-pro">—</div></div>
+      <div class="stat-card blue"><div class="stat-label">Sin calificación</div><div class="stat-value" id="pmr-sin">—</div></div>
+    </div>
+
+    <!-- Cards por programa -->
+    <div id="pmr-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;margin-bottom:24px;"></div>
   </div>
 
   <div id="changelog" class="panel">
@@ -486,6 +513,7 @@ function renderAll(wb) {
     const fv = rows[1] && rows[1][0]; // col B start
     if (fv) document.getElementById('fecha-chip').textContent = 'Rev: ' + fmtDate(fv);
   }
+  renderPMR(wb);
   renderClausulasV(wb);
   renderClausulas180(wb);
   renderProductos(wb);
@@ -747,6 +775,192 @@ function renderChangelog(wb) {
       <span class="log-tab">${s(r[1])}</span>
       <span class="log-op">${s(r[2])}</span>
       <span style="font-size:12px">${s(r[3])}</span>
+    </div>`;
+  });
+}
+
+function renderPMR(wb) {
+  const ws = getSheet(wb, 'PMR') || getSheet(wb, 'pmr'); if (!ws) return;
+  const rows = sheetToArr(ws);
+
+  // Find header row: the one where ANY cell equals exactly 'Programa'
+  const hIdx = rows.findIndex(r => r.some(c => String(c||'').trim() === 'Programa'));
+  if (hIdx < 0) return;
+  const headerRow = rows[hIdx];
+
+  // Resolve column indices DYNAMICALLY from the header row — immune to range shifts
+  // There are two cols named 'Calificación Calculada' and two named 'Calificación Validada'
+  // We want the SECOND occurrence of each (cols F and G, the real data ones)
+  function findCol(label, nth) {
+    nth = nth || 1;
+    let count = 0;
+    for (let i = 0; i < headerRow.length; i++) {
+      if (String(headerRow[i]||'').trim() === label) {
+        count++;
+        if (count === nth) return i;
+      }
+    }
+    return -1;
+  }
+  function findColFirst(label) {
+    for (let i = 0; i < headerRow.length; i++) {
+      if (String(headerRow[i]||'').trim() === label) return i;
+    }
+    return -1;
+  }
+
+  const iPrograma  = findColFirst('Programa');
+  const iNombre    = findColFirst('Nombre');
+  const iCalcCalc  = findColFirst('Calificación Calculada');  // col D (only occurrence)
+  const iCalcVal   = findColFirst('Calificación Validada');   // col E (only occurrence, now explicit values)
+  const iDesemb    = findColFirst('Desembolsos');
+  const iSPI       = findColFirst('SPI');
+  const iSPIa      = findColFirst('SPI(a)');
+  const iCPI       = findColFirst('CPI');
+  const iCPIa      = findColFirst('CPI(a)');
+  const iMeses     = findColFirst('meses desde 95%');
+  const iEtapa     = findColFirst('Etapa');
+  const iComent    = findColFirst('Comentarios de simulación PMR');
+  const iPlan      = findColFirst('Plan Acción 2026');
+
+  // Use actual header labels for section titles
+  const labelComent = s(headerRow[iComent]) || 'Comentarios de simulación PMR';
+  const labelPlan   = s(headerRow[iPlan])   || 'Plan Acción 2026';
+
+  const data = rows.slice(hIdx + 1).filter(r => r[iPrograma] != null);
+
+  // KPI counts by Calificación Validada
+  let sat=0, ale=0, pro=0, sin=0;
+  data.forEach(r => {
+    // Use validated when explicit, otherwise fall back to calculated
+    const calV = s(r[iCalcVal]);
+    const cal = String(calV || s(r[iCalcCalc]) || '').trim().toUpperCase();
+    if (cal.includes('SATISFACTORIO')) sat++;
+    else if (cal.includes('ALERTA'))   ale++;
+    else if (cal.includes('PROBLEMA')) pro++;
+    else sin++;
+  });
+  document.getElementById('pmr-sat').textContent = sat;
+  document.getElementById('pmr-ale').textContent = ale;
+  document.getElementById('pmr-pro').textContent = pro;
+  document.getElementById('pmr-sin').textContent = sin;
+
+  function pmrPill(cal, small) {
+    const t = String(cal||'').trim().toUpperCase();
+    const cls   = t.includes('SATISFACTORIO') ? 'pill-green'
+                : t.includes('ALERTA')        ? 'pill-yellow'
+                : t.includes('PROBLEMA')      ? 'pill-red'
+                : 'pill-blue';
+    const label = t.includes('SATISFACTORIO') ? 'Satisfactorio'
+                : t.includes('ALERTA')        ? 'Alerta'
+                : t.includes('PROBLEMA')      ? 'Problema'
+                : (cal || 'Sin calificación');
+    const sz = small ? 'font-size:10px;padding:2px 7px;' : '';
+    return `<span class="pill ${cls}" style="${sz}">${label}</span>`;
+  }
+
+  function fmtInd(v) {
+    if (v == null) return 'N/A';
+    const str = String(v).trim();
+    if (!str || str.toUpperCase() === 'N/A') return 'N/A';
+    const n = parseFloat(str);
+    return isNaN(n) ? str : n.toFixed(2);
+  }
+
+  function indColor(v) {
+    const n = parseFloat(String(v).replace(',','.'));
+    if (isNaN(n)) return 'var(--muted)';
+    return n >= 0.95 ? 'var(--green)' : n >= 0.75 ? 'var(--yellow)' : 'var(--red)';
+  }
+
+  const grid = document.getElementById('pmr-grid');
+  grid.innerHTML = '';
+
+  data.forEach(r => {
+    const prog    = s(r[iPrograma]);
+    const nombre  = iNombre   >= 0 ? s(r[iNombre])   : '';
+    const calCalc = iCalcCalc >= 0 ? s(r[iCalcCalc]) : '';
+    // SheetJS does not resolve formulas (=+F5) — they come back as null.
+    // When calVal is null/empty it means the formula = calCalc, so use calCalc as fallback.
+    const calValRaw = iCalcVal >= 0 ? s(r[iCalcVal]) : '';
+    const calVal  = calValRaw || calCalc;   // null formula → same as calculada
+    const calShow = calVal || calCalc;
+    // Only flag as "ajustada" when the cell has an explicit text value different from calCalc
+    const difieren = calValRaw && calCalc && calValRaw.toUpperCase() !== calCalc.toUpperCase();
+
+    const indDefs = [
+      { label:'Desemb.',    idx:iDesemb },
+      { label:'SPI',        idx:iSPI    },
+      { label:'SPI(a)',     idx:iSPIa   },
+      { label:'CPI',        idx:iCPI    },
+      { label:'CPI(a)',     idx:iCPIa   },
+      { label:'Meses 95%',  idx:iMeses,  nocolor:true },
+      { label:'Etapa',      idx:iEtapa,  nocolor:true },
+    ].filter(d => d.idx >= 0)
+     .map(d => ({ ...d, fmt: fmtInd(r[d.idx]), raw: r[d.idx] }))
+     .filter(d => d.fmt !== 'N/A' && d.fmt !== '');
+
+    const indsHtml = indDefs.length ? `
+      <div>
+        <div class="pmr-section-label">Indicadores técnicos</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${indDefs.map(d => `
+            <div class="pmr-indicator">
+              <span class="pmr-ind-label">${d.label}</span>
+              <span class="pmr-ind-value" style="color:${d.nocolor ? 'var(--text)' : indColor(d.raw)}">${d.fmt}</span>
+            </div>`).join('')}
+        </div>
+      </div>` : '';
+
+    const calHtml = difieren ? `
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:2px;">
+        <div>
+          <div class="pmr-section-label" style="margin-bottom:3px;">Calculada</div>
+          ${pmrPill(calCalc, true)}
+        </div>
+        <div style="color:var(--border);font-size:18px;align-self:center;">→</div>
+        <div>
+          <div class="pmr-section-label" style="margin-bottom:3px;color:var(--accent);">Validada</div>
+          ${pmrPill(calVal, true)}
+        </div>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--yellow);margin-left:2px;">Ajustada por la COF</span>
+      </div>` : '';
+
+    const coment = iComent >= 0 ? s(r[iComent]) : '';
+    const plan   = iPlan   >= 0 ? s(r[iPlan])   : '';
+
+    const comentHtml = coment ? `
+      <div>
+        <div class="pmr-section-label">${labelComent}</div>
+        <div class="pmr-text">${coment}</div>
+      </div>` : '';
+
+    const planHtml = plan && plan.toUpperCase() !== 'N/A' ? `
+      <div style="background:rgba(0,212,255,.04);border:1px solid rgba(0,212,255,.15);border-radius:8px;padding:10px 12px;">
+        <div class="pmr-section-label" style="color:var(--accent);margin-bottom:4px;">${labelPlan}</div>
+        <div class="pmr-text">${plan}</div>
+      </div>` : '';
+
+    const calTop = calShow.toUpperCase();
+    const borderClr = calTop.includes('PROBLEMA')       ? 'rgba(239,68,68,.4)'
+                    : calTop.includes('ALERTA')         ? 'rgba(245,158,11,.35)'
+                    : calTop.includes('SATISFACTORIO')  ? 'rgba(16,185,129,.25)'
+                    : 'var(--border)';
+
+    grid.innerHTML += `<div class="pmr-card" style="border-color:${borderClr}">
+      <div class="pmr-card-head">
+        <div>
+          <span class="pmr-prog">${prog}</span>
+          ${nombre ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;font-family:var(--mono);line-height:1.4">${nombre}</div>` : ''}
+        </div>
+        ${pmrPill(calShow)}
+      </div>
+      <div class="pmr-body">
+        ${calHtml}
+        ${indsHtml}
+        ${comentHtml}
+        ${planHtml}
+      </div>
     </div>`;
   });
 }
