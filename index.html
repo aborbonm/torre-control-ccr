@@ -166,7 +166,7 @@
     <div class="pulse"></div>
     <div class="date-chip" id="fecha-chip">—</div>
     <div id="cache-chip" style="display:none;font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);padding:4px 10px;border-radius:100px;" title=""></div>
-    <button class="reload-btn" onclick="fetchExcel(true)">&#x21BA; Actualizar Excel</button>
+    <button class="reload-btn" onclick="fetchExcel(true)">&#x21BA; Actualizar Datos</button>
     <button class="reload-btn" id="clear-cache-btn" style="display:none;color:var(--red);border-color:rgba(239,68,44,.3)" onclick="clearCache()">x Limpiar cache</button>
   </div>
 </header>
@@ -187,12 +187,12 @@
     <div class="stat-row">
       <div class="stat-card red"><div class="stat-label">Cláusulas vencidas</div><div class="stat-value" id="s-cv">—</div><div class="stat-sub">Requieren atención inmediata</div></div>
       <div class="stat-card yellow"><div class="stat-label">Vencen en 180 días</div><div class="stat-value" id="s-180">—</div><div class="stat-sub">En seguimiento</div></div>
-      <div class="stat-card red"><div class="stat-label">Productos retrasados</div><div class="stat-value" id="s-ret">—</div><div class="stat-sub" id="s-ret-sub">Cargando…</div></div>
+      <div class="stat-card red"><div class="stat-label">Productos críticos retrasados</div><div class="stat-value" id="s-ret">—</div><div class="stat-sub" id="s-ret-sub">Cargando…</div></div>
       <div class="stat-card blue"><div class="stat-label">Operaciones activas</div><div class="stat-value" id="s-ops">—</div><div class="stat-sub">CR-L, CR-J, CR-G</div></div>
     </div>
-    <div class="section-head"><h2>Estado de productos por operación</h2></div>
+    <div class="section-head"><h2>Estado de productos críticos por operación</h2></div>
     <div class="table-wrap"><table><thead><tr><th>Operación</th><th>Logrado</th><th>En tiempo</th><th>Retrasado</th><th>Total</th></tr></thead><tbody id="t-resumen"></tbody></table></div>
-    <div class="section-head"><h2>Próximos vencimientos críticos (≤30 días)</h2></div>
+    <div class="section-head"><h2>Próximos vencimientos de cláusulas (≤30 días)</h2></div>
     <div class="table-wrap"><table><thead><tr><th>Urgencia</th><th>Contrato</th><th>Descripción</th><th>Vencimiento</th><th>Días</th></tr></thead><tbody id="t-alertas"></tbody></table></div>
   </div>
 
