@@ -347,7 +347,6 @@ function showTab(id, el) {
 // ── IndexedDB cache ──
 const DB_NAME = 'TorreControlCCR', DB_STORE = 'excel', DB_KEY = 'file';
 const EXCEL_URL = 'https://raw.githubusercontent.com/aborbonm/torre-control-ccr/main/torre_de_control_CCR.xlsx';
-const CSV_URL   = 'https://raw.githubusercontent.com/aborbonm/torre-control-ccr/main/Status_Date_Clause_Operation.csv';
 
 function openDB() {
   return new Promise((res, rej) => {
@@ -415,13 +414,11 @@ async function fetchExcel(forceRefresh) {
     if (cached && cached.data) {
       try {
         const wb = XLSX.read(cached.data, { type: 'array', cellDates: true });
-        const cachedCsv = await getFromCacheKey('csv');
-        const csvText = cachedCsv ? cachedCsv.data : '';
-        renderAll(wb, csvText);
+        renderAll(wb);
         document.getElementById('file-picker').classList.add('hidden');
         showCacheChip(cached.ts);
         document.getElementById('loader').classList.add('hidden');
-        // Fetch fresh in background
+        // Fetch fresh in background and update if different
         fetchAndUpdate();
         return;
       } catch(e) {
@@ -437,70 +434,29 @@ async function fetchExcel(forceRefresh) {
 
 async function fetchAndUpdate() {
   try {
-    // Fetch Excel — required, failure shows error screen
-    const excelRes = await fetch(EXCEL_URL + '?t=' + Date.now());
-    if (!excelRes.ok) throw new Error('Excel HTTP ' + excelRes.status);
-    const buf   = await excelRes.arrayBuffer();
+    const res = await fetch(EXCEL_URL + '?t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const buf = await res.arrayBuffer();
     const bytes = new Uint8Array(buf);
-    const wb    = XLSX.read(bytes, { type: 'array', cellDates: true });
-    const ts    = Date.now();
-
-    // Fetch CSV — optional, failure just leaves clausulas vencidas empty
-    let csvText = '';
-    try {
-      const csvRes = await fetch(CSV_URL + '?t=' + Date.now());
-      if (csvRes.ok) {
-        csvText = await csvRes.text();
-        await saveToCacheKey('csv', csvText, ts);
-      } else {
-        console.warn('CSV no disponible (HTTP ' + csvRes.status + ') — clausulas vencidas quedará vacía');
-        const cachedCsv = await getFromCacheKey('csv');
-        if (cachedCsv) csvText = cachedCsv.data;
-      }
-    } catch(csvErr) {
-      console.warn('Error cargando CSV:', csvErr, '— usando caché si existe');
-      const cachedCsv = await getFromCacheKey('csv');
-      if (cachedCsv) csvText = cachedCsv.data;
-    }
-
-    renderAll(wb, csvText);
+    const wb = XLSX.read(bytes, { type: 'array', cellDates: true });
+    const ts = Date.now();
+    renderAll(wb);
     document.getElementById('file-picker').classList.add('hidden');
     document.getElementById('loader').classList.add('hidden');
     showCacheChip(ts);
     await saveToCache(bytes, ts);
   } catch(err) {
     console.error('Error cargando Excel:', err);
+    // If we had cached data, keep it shown — just warn
     const cached = await getFromCache();
     if (!cached) {
       document.getElementById('file-picker').classList.remove('hidden');
       document.getElementById('loader').classList.add('hidden');
     } else {
+      // Already rendered from cache, just log
       document.getElementById('loader').classList.add('hidden');
     }
   }
-}
-
-// ── Generic cache key helper ──
-async function saveToCacheKey(key, value, ts) {
-  try {
-    const db = await openDB();
-    await new Promise((res, rej) => {
-      const tx = db.transaction(DB_STORE, 'readwrite');
-      tx.objectStore(DB_STORE).put({ data: value, ts: ts }, key);
-      tx.oncomplete = res; tx.onerror = () => rej(tx.error);
-    });
-  } catch(e) { console.warn('saveToCacheKey:', e); }
-}
-
-async function getFromCacheKey(key) {
-  try {
-    const db = await openDB();
-    return await new Promise((res, rej) => {
-      const req = db.transaction(DB_STORE, 'readonly').objectStore(DB_STORE).get(key);
-      req.onsuccess = () => res(req.result || null);
-      req.onerror = () => rej(req.error);
-    });
-  } catch(e) { return null; }
 }
 
 // ── Iniciar carga al abrir la pagina ──
@@ -550,7 +506,7 @@ const s = v => v != null ? String(v).trim() : '';
 const linkIcon = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
 
 // ── Render all ──
-function renderAll(wb, csvText) {
+function renderAll(wb) {
   const wsEq = getSheet(wb, 'equipo');
   if (wsEq) {
     const rows = sheetToArr(wsEq);
@@ -558,7 +514,7 @@ function renderAll(wb, csvText) {
     if (fv) document.getElementById('fecha-chip').textContent = 'Rev: ' + fmtDate(fv);
   }
   renderPMR(wb);
-  renderClausulasV(wb, csvText || '');
+  renderClausulasV(wb);
   renderClausulas180(wb);
   renderProductos(wb);
   renderEquipo(wb);
@@ -567,78 +523,25 @@ function renderAll(wb, csvText) {
   renderResumen(wb);
 }
 
-function renderClausulasV(wb, csvText) {
-  const today = new Date();
-  today.setHours(0,0,0,0);
-
-  // Parse CSV — real headers are on row index 3 (after 3 junk rows)
-  function parseCsv(text) {
-    if (!text) return [];
-    const lines = text.split(/
-?
-/).filter(l => l.trim());
-    // Find header row: the one containing 'Clause_ID'
-    const hIdx = lines.findIndex(l => l.includes('Clause_ID'));
-    if (hIdx < 0) return [];
-    const headers = lines[hIdx].split(',').map(h => h.trim().replace(/^"|"$/g,''));
-    const result = [];
-    for (let i = hIdx + 1; i < lines.length; i++) {
-      // Handle quoted fields with commas inside
-      const vals = [];
-      let cur = '', inQ = false;
-      for (const ch of lines[i] + ',') {
-        if (ch === '"') { inQ = !inQ; }
-        else if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
-        else { cur += ch; }
-      }
-      const row = {};
-      headers.forEach((h, idx) => { row[h] = vals[idx] || ''; });
-      result.push(row);
-    }
-    return result;
-  }
-
-  // Parse date like "5-Apr-27" or "31-Mar-26" → Date object
-  function parseExpDate(str) {
-    if (!str) return null;
-    const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
-    const parts = str.trim().split('-');
-    if (parts.length !== 3) return null;
-    const day   = parseInt(parts[0]);
-    const mon   = months[parts[1].toLowerCase()];
-    let   year  = parseInt(parts[2]);
-    if (year < 100) year += 2000;
-    if (isNaN(day) || mon === undefined || isNaN(year)) return null;
-    return new Date(year, mon, day);
-  }
-
-  const allRows = parseCsv(csvText);
-
-  // Filter: INV + TRACK + expiration date < today
-  const data = allRows.filter(r => {
-    if (r['Lending_Instrument1'] !== 'INV') return false;
-    if (r['Clause_Status__English_'] !== 'TRACK') return false;
-    const d = parseExpDate(r['Clause_Current_Expiration_Date']);
-    return d && d < today;
-  });
-
+function renderClausulasV(wb) {
+  const ws = getSheet(wb, 'vencidas'); if (!ws) return;
+  const rows = sheetToArr(ws);
+  const hIdx = rows.findIndex(r => r.some(c => String(c||'').includes('Clause ID')));
+  // col B start: 0=ClauseID,1=N#Clausula,2=Programa,3=Operacion,4=UDR,5=Status,6=Tipo,7=Desc,8=Fecha,9=Comentario
+  const data = rows.slice(hIdx+1).filter(r => r[0] != null);
   const tbody = document.getElementById('t-clausulas-v');
   tbody.innerHTML = '';
   data.forEach(r => {
-    const d = parseExpDate(r['Clause_Current_Expiration_Date']);
-    const fechaStr = d ? d.toLocaleDateString('es-CR',{day:'2-digit',month:'short',year:'numeric'}) : r['Clause_Current_Expiration_Date'];
+    const com = s(r[9]);
     tbody.innerHTML += `<tr>
-      <td class="mono">${r['Clause_ID']}</td>
-      <td class="mono">${r['Clause_Number']}</td>
-      <td class="mono">${r['Operation_Number1']}</td>
-      <td class="mono">${r['SL_VW_CONTRACT_Operation_Number']}</td>
-      <td>${pill(r['Clause_Type__English_'])}</td>
-      <td style="font-size:13px;line-height:1.5">${r['B_Clause_Description']}</td>
-      <td class="mono" style="color:var(--red)">${fechaStr}</td>
-      <td style="color:var(--muted)">—</td>
+      <td class="mono">${s(r[0])}</td><td class="mono">${s(r[1])}</td>
+      <td class="mono">${s(r[2])}</td><td class="mono">${s(r[3])}</td>
+      <td>${pill(s(r[6]))}</td>
+      <td style="font-size:13px;line-height:1.5">${s(r[7])}</td>
+      <td class="mono" style="color:var(--red)">${fmtDate(r[8])}</td>
+      <td style="font-size:12px;color:${com?'var(--yellow)':'var(--muted)'}">${com||'—'}</td>
     </tr>`;
   });
-
   document.getElementById('s-cv').textContent = data.length;
   document.getElementById('badge-cv').textContent = data.length;
 }
