@@ -437,28 +437,39 @@ async function fetchExcel(forceRefresh) {
 
 async function fetchAndUpdate() {
   try {
-    // Fetch both files in parallel
-    const [excelRes, csvRes] = await Promise.all([
-      fetch(EXCEL_URL + '?t=' + Date.now()),
-      fetch(CSV_URL   + '?t=' + Date.now()),
-    ]);
+    // Fetch Excel — required, failure shows error screen
+    const excelRes = await fetch(EXCEL_URL + '?t=' + Date.now());
     if (!excelRes.ok) throw new Error('Excel HTTP ' + excelRes.status);
-    if (!csvRes.ok)   throw new Error('CSV HTTP '   + csvRes.status);
-
-    const [buf, csvText] = await Promise.all([excelRes.arrayBuffer(), csvRes.text()]);
+    const buf   = await excelRes.arrayBuffer();
     const bytes = new Uint8Array(buf);
-    const wb  = XLSX.read(bytes, { type: 'array', cellDates: true });
-    const ts  = Date.now();
+    const wb    = XLSX.read(bytes, { type: 'array', cellDates: true });
+    const ts    = Date.now();
+
+    // Fetch CSV — optional, failure just leaves clausulas vencidas empty
+    let csvText = '';
+    try {
+      const csvRes = await fetch(CSV_URL + '?t=' + Date.now());
+      if (csvRes.ok) {
+        csvText = await csvRes.text();
+        await saveToCacheKey('csv', csvText, ts);
+      } else {
+        console.warn('CSV no disponible (HTTP ' + csvRes.status + ') — clausulas vencidas quedará vacía');
+        const cachedCsv = await getFromCacheKey('csv');
+        if (cachedCsv) csvText = cachedCsv.data;
+      }
+    } catch(csvErr) {
+      console.warn('Error cargando CSV:', csvErr, '— usando caché si existe');
+      const cachedCsv = await getFromCacheKey('csv');
+      if (cachedCsv) csvText = cachedCsv.data;
+    }
 
     renderAll(wb, csvText);
     document.getElementById('file-picker').classList.add('hidden');
     document.getElementById('loader').classList.add('hidden');
     showCacheChip(ts);
     await saveToCache(bytes, ts);
-    // Cache CSV separately
-    await saveToCacheKey('csv', csvText, ts);
   } catch(err) {
-    console.error('Error cargando datos:', err);
+    console.error('Error cargando Excel:', err);
     const cached = await getFromCache();
     if (!cached) {
       document.getElementById('file-picker').classList.remove('hidden');
@@ -563,7 +574,8 @@ function renderClausulasV(wb, csvText) {
   // Parse CSV — real headers are on row index 3 (after 3 junk rows)
   function parseCsv(text) {
     if (!text) return [];
-    const lines = text.split(/?
+    const lines = text.split(/
+?
 /).filter(l => l.trim());
     // Find header row: the one containing 'Clause_ID'
     const hIdx = lines.findIndex(l => l.includes('Clause_ID'));
