@@ -559,6 +559,7 @@ function renderAll(wb, csvText) {
   }
   renderPMR(wb);
   renderClausulasV(wb, csvText || '');
+  renderClausulas180CSV(csvText || '');
   renderClausulas180(wb);
   renderProductos(wb);
   renderEquipo(wb);
@@ -661,25 +662,109 @@ function renderClausulasV(wb, csvText) {
 }
 
 function renderClausulas180(wb) {
-  const ws = getSheet(wb, '180'); if (!ws) return;
-  const rows = sheetToArr(ws);
-  const hIdx = rows.findIndex(r => r.some(c => String(c||'').includes('Clause ID')));
-  // col B start: 0=ClauseID,1=N#Clausula,2=ContractID,3=LMS,4=UDR,5=Status,6=Tipo,7=Desc,8=Fecha,9=Dias
-  const data = rows.slice(hIdx+1).filter(r => r[0] != null);
+  // Kept for renderResumen alertas — reads from xlsx (legacy)
+  // Main tab rendering is done by renderClausulas180CSV
+}
+
+function renderClausulas180CSV(csvText) {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const limit = new Date(today);
+  limit.setDate(limit.getDate() + 180);
+
+  // Reuse parseCsv and parseExpDate defined in renderClausulasV scope
+  // They are inner functions — replicate logic here at module level
+  function parseDate(str) {
+    if (!str) return null;
+    const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+    const parts = str.trim().split('-');
+    if (parts.length !== 3) return null;
+    const day = parseInt(parts[0]);
+    const mon = months[parts[1].toLowerCase()];
+    let year  = parseInt(parts[2]);
+    if (year < 100) year += 2000;
+    if (isNaN(day) || mon === undefined || isNaN(year)) return null;
+    return new Date(year, mon, day);
+  }
+
+  function parseCSV(text) {
+    if (!text) return [];
+    const lines = [];
+    let cur = '';
+    for (let ci = 0; ci < text.length; ci++) {
+      const ch = text[ci];
+      if (ch === '\n') { lines.push(cur.replace(/\r$/, '')); cur = ''; }
+      else { cur += ch; }
+    }
+    if (cur.trim()) lines.push(cur);
+    const hIdx = lines.findIndex(function(l) { return l.indexOf('Clause_ID') >= 0; });
+    if (hIdx < 0) return [];
+    const headers = [];
+    let hStr = '', hInQ = false;
+    const hLine = lines[hIdx] + ',';
+    for (let ci = 0; ci < hLine.length; ci++) {
+      const ch = hLine[ci];
+      if (ch === '"') { hInQ = !hInQ; }
+      else if (ch === ',' && !hInQ) { headers.push(hStr.trim()); hStr = ''; }
+      else { hStr += ch; }
+    }
+    const result = [];
+    for (let i = hIdx + 1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      const vals = [];
+      let v = '', inQ = false;
+      const rowLine = lines[i] + ',';
+      for (let ci = 0; ci < rowLine.length; ci++) {
+        const ch = rowLine[ci];
+        if (ch === '"') { inQ = !inQ; }
+        else if (ch === ',' && !inQ) { vals.push(v.trim()); v = ''; }
+        else { v += ch; }
+      }
+      if (vals.length < 3) continue;
+      const row = {};
+      headers.forEach(function(hdr, idx) { row[hdr] = vals[idx] !== undefined ? vals[idx] : ''; });
+      result.push(row);
+    }
+    return result;
+  }
+
+  const allRows = parseCSV(csvText);
+
+  // Filter: INV + TRACK + expiration > today AND <= today+180
+  const data = allRows.filter(r => {
+    if (r['Lending_Instrument1'] !== 'INV') return false;
+    if (r['Clause_Status__English_'] !== 'TRACK') return false;
+    const d = parseDate(r['Clause_Current_Expiration_Date']);
+    return d && d > today && d <= limit;
+  });
+
+  // Sort by date ascending
+  data.sort((a, b) => {
+    const da = parseDate(a['Clause_Current_Expiration_Date']);
+    const db = parseDate(b['Clause_Current_Expiration_Date']);
+    return (da || 0) - (db || 0);
+  });
+
   const tbody = document.getElementById('t-clausulas-180');
   tbody.innerHTML = '';
   data.forEach(r => {
-    const dias = parseInt(r[9]) || 0;
+    const d = parseDate(r['Clause_Current_Expiration_Date']);
+    const fechaStr = d ? d.toLocaleDateString('es-CR',{day:'2-digit',month:'short',year:'numeric'}) : r['Clause_Current_Expiration_Date'];
+    const dias = d ? Math.ceil((d - today) / 86400000) : 0;
     const color = dias <= 30 ? 'var(--red)' : dias <= 90 ? 'var(--yellow)' : 'var(--green)';
     const bw = Math.max(8, Math.min(110, dias * 0.62));
     tbody.innerHTML += `<tr>
-      <td class="mono">${s(r[0])}</td><td class="mono">${s(r[2])}</td><td class="mono">${s(r[3])}</td>
-      <td>${pill(s(r[6]))}</td>
-      <td style="font-size:13px;line-height:1.5">${s(r[7])}</td>
-      <td class="mono">${fmtDate(r[8])}</td>
+      <td class="mono">${r['Clause_ID']}</td>
+      <td class="mono">${r['Clause_Number']}</td>
+      <td class="mono">${r['Operation_Number1']}</td>
+      <td class="mono">${r['SL_VW_CONTRACT_Operation_Number']}</td>
+      <td>${pill(r['Clause_Type__English_'])}</td>
+      <td style="font-size:13px;line-height:1.5">${r['B_Clause_Description']}</td>
+      <td class="mono">${fechaStr}</td>
       <td><div class="days-bar"><div class="bar" style="width:${bw}px;background:${color}"></div><span class="days-num" style="color:${color}">${dias}d</span></div></td>
     </tr>`;
   });
+
   document.getElementById('s-180').textContent = data.length;
   document.getElementById('badge-180').textContent = data.length;
 }
