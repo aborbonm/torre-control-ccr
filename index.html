@@ -1063,7 +1063,7 @@ function renderPMR(wb) {
   function indColor(v) {
     const n = parseFloat(String(v).replace(',','.'));
     if (isNaN(n)) return 'var(--muted)';
-    return n >= 0.95 ? 'var(--green)' : n >= 0.75 ? 'var(--yellow)' : 'var(--red)';
+    return n >= 0.8 ? 'var(--green)' : n >= 0.4 ? 'var(--yellow)' : 'var(--red)';
   }
 
   const grid = document.getElementById('pmr-grid');
