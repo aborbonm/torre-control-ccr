@@ -123,24 +123,6 @@
   .log-tab{font-family:var(--mono);font-size:11px;color:var(--accent2);min-width:130px;}
   .log-op{font-family:var(--mono);font-size:11px;color:var(--accent);min-width:75px;}
 
-  /* Resultados */
-  .res-op-block{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
-  .res-op-head{padding:12px 18px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
-  .res-op-name{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--accent);}
-  .res-obj-block{border-bottom:1px solid var(--border);padding:14px 18px;}
-  .res-obj-block:last-child{border-bottom:none;}
-  .res-obj-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;line-height:1.4;}
-  .res-obj-num{font-family:var(--mono);font-size:11px;color:var(--accent);margin-right:6px;}
-  .res-ind-row{display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);}
-  .res-ind-row:last-child{border-bottom:none;}
-  .res-ind-id{font-family:var(--mono);font-size:11px;color:var(--muted);min-width:36px;padding-top:2px;}
-  .res-ind-body{flex:1;}
-  .res-ind-desc{font-size:12px;color:var(--text);line-height:1.4;margin-bottom:4px;}
-  .res-ind-meta{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
-  .res-ind-val{font-family:var(--mono);font-size:11px;color:var(--muted);}
-  .res-ind-val span{color:var(--text);}
-  .res-prods{margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;}
-  .res-prod-chip{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.18);color:var(--accent);}
   .pmr-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
   .pmr-card-head{padding:14px 18px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;}
   .pmr-prog{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--accent);}
@@ -196,7 +178,6 @@
   <div class="tab" onclick="showTab('productos',this)">Productos Críticos</div>
   <div class="tab" onclick="showTab('equipo',this)">Equipo</div>
   <div class="tab" onclick="showTab('documentos',this)">Documentos</div>
-  <div class="tab" onclick="showTab('resultados-tab',this)">Resultados</div>
   <div class="tab" onclick="showTab('pmr',this)">PMR</div>
   <div class="tab" onclick="showTab('changelog',this)">Change Log <span class="badge badge-blue" id="badge-cl">—</span></div>
 </nav>
@@ -277,27 +258,6 @@
       <thead id="docs-head"></thead>
       <tbody id="t-docs"></tbody>
     </table></div>
-  </div>
-
-  <div id="resultados-tab" class="panel">
-    <div class="section-head"><h2>Probabilidad de logro de resultados</h2></div>
-
-    <!-- KPIs globales -->
-    <div class="stat-row" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px;">
-      <div class="stat-card green"><div class="stat-label">Alta</div><div class="stat-value" id="res-alta">—</div><div class="stat-sub">indicadores</div></div>
-      <div class="stat-card yellow"><div class="stat-label">Media</div><div class="stat-value" id="res-media">—</div><div class="stat-sub">indicadores</div></div>
-      <div class="stat-card red"><div class="stat-label">Baja</div><div class="stat-value" id="res-baja">—</div><div class="stat-sub">indicadores</div></div>
-    </div>
-
-    <!-- Filtro por operación -->
-    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;align-items:center;">
-      <span style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);">Operación:</span>
-      <div id="res-filter-ops" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
-      <button onclick="resetResFilter()" style="font-family:var(--mono);font-size:11px;background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:100px;cursor:pointer;margin-left:8px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">↺ Todas</button>
-    </div>
-
-    <!-- Cards por operación → objetivo → indicadores -->
-    <div id="res-grid" style="display:flex;flex-direction:column;gap:20px;"></div>
   </div>
 
   <div id="pmr" class="panel">
@@ -597,7 +557,6 @@ function renderAll(wb, csvText) {
     const fv = rows[1] && rows[1][0]; // col B start
     if (fv) document.getElementById('fecha-chip').textContent = 'Rev: ' + fmtDate(fv);
   }
-  renderResultados(wb);
   renderPMR(wb);
   renderClausulasV(wb, csvText || '');
   renderClausulas180CSV(csvText || '');
@@ -1009,171 +968,6 @@ function renderChangelog(wb) {
       <span class="log-tab">${s(r[1])}</span>
       <span class="log-op">${s(r[2])}</span>
       <span style="font-size:12px">${s(r[3])}</span>
-    </div>`;
-  });
-}
-
-// ── Resultados globales ──
-let _resData = [];
-let _resProdMap = {};  // "op|indId" -> [productos]
-let _resActiveOp = null;
-
-function renderResultados(wb) {
-  // ── Read resultados sheet ──
-  const wsR = getSheet(wb, 'resultados');
-  if (!wsR) return;
-  const rowsR = sheetToArr(wsR);
-  // col A start: 0=Operacion,1=Obj_ID,2=Obj_Desc,3=Ind_ID,4=Ind_Desc,5=Linea_Base,6=Meta,7=Probabilidad
-  const hR = rowsR.findIndex(r => String(r[0]||'').trim() === 'Operacion');
-  if (hR < 0) return;
-  _resData = rowsR.slice(hR+1).filter(r => r[0] != null);
-
-  // ── Read productos_resultados sheet ──
-  const wsP = getSheet(wb, 'productos_resultados');
-  _resProdMap = {};
-  if (wsP) {
-    const rowsP = sheetToArr(wsP);
-    const hP = rowsP.findIndex(r => String(r[0]||'').trim() === 'Operacion');
-    if (hP >= 0) {
-      rowsP.slice(hP+1).filter(r => r[0] != null).forEach(r => {
-        const key = s(r[0]) + '|' + s(r[1]);
-        if (!_resProdMap[key]) _resProdMap[key] = [];
-        _resProdMap[key].push(s(r[2]));
-      });
-    }
-  }
-
-  // ── KPI counts ──
-  let alta=0, media=0, baja=0;
-  _resData.forEach(r => {
-    const p = String(r[7]||'').trim();
-    if (p === 'Alta') alta++;
-    else if (p === 'Media') media++;
-    else if (p === 'Baja') baja++;
-  });
-  document.getElementById('res-alta').textContent = alta;
-  document.getElementById('res-media').textContent = media;
-  document.getElementById('res-baja').textContent = baja;
-
-  // ── Build op filter buttons ──
-  const ops = [...new Set(_resData.map(r => s(r[0])).filter(Boolean))];
-  _resActiveOp = null;
-  const filterDiv = document.getElementById('res-filter-ops');
-  filterDiv.innerHTML = '';
-  ops.forEach(op => {
-    const btn = document.createElement('button');
-    btn.className = 'filter-op-btn active';
-    btn.textContent = op;
-    btn.dataset.op = op;
-    btn.onclick = () => selectResOp(btn, op);
-    filterDiv.appendChild(btn);
-  });
-
-  renderResGrid();
-}
-
-function selectResOp(btn, op) {
-  const allBtns = document.querySelectorAll('#res-filter-ops .filter-op-btn');
-  if (_resActiveOp === op) {
-    // deselect → show all
-    _resActiveOp = null;
-    allBtns.forEach(b => b.classList.add('active'));
-  } else {
-    _resActiveOp = op;
-    allBtns.forEach(b => b.classList.toggle('active', b.dataset.op === op));
-  }
-  renderResGrid();
-}
-
-function resetResFilter() {
-  _resActiveOp = null;
-  document.querySelectorAll('#res-filter-ops .filter-op-btn').forEach(b => b.classList.add('active'));
-  renderResGrid();
-}
-
-function probPill(prob) {
-  const t = String(prob||'').trim();
-  if (t === 'Alta')  return '<span class="pill pill-green" style="font-size:10px;padding:2px 8px;">Alta</span>';
-  if (t === 'Media') return '<span class="pill pill-yellow" style="font-size:10px;padding:2px 8px;">Media</span>';
-  if (t === 'Baja')  return '<span class="pill pill-red" style="font-size:10px;padding:2px 8px;">Baja</span>';
-  return '<span class="pill pill-blue" style="font-size:10px;padding:2px 8px;">' + t + '</span>';
-}
-
-function renderResGrid() {
-  const grid = document.getElementById('res-grid');
-  grid.innerHTML = '';
-
-  // Filter by active op
-  const data = _resActiveOp
-    ? _resData.filter(r => s(r[0]) === _resActiveOp)
-    : _resData;
-
-  // Group by op → obj → indicators
-  const byOp = {};
-  data.forEach(r => {
-    const op  = s(r[0]);
-    const obj = s(r[1]);
-    const key = op + '||' + obj;
-    if (!byOp[op]) byOp[op] = {};
-    if (!byOp[op][obj]) byOp[op][obj] = { desc: s(r[2]), inds: [] };
-    byOp[op][obj].inds.push(r);
-  });
-
-  Object.entries(byOp).forEach(([op, objs]) => {
-    // Count pills for op header
-    let opAlta=0, opMedia=0, opBaja=0;
-    Object.values(objs).forEach(o => o.inds.forEach(r => {
-      const p = String(r[7]||'').trim();
-      if (p==='Alta') opAlta++;
-      else if (p==='Media') opMedia++;
-      else if (p==='Baja') opBaja++;
-    }));
-
-    const objsHtml = Object.entries(objs).map(([objId, obj]) => {
-      const indsHtml = obj.inds.map(r => {
-        const indId   = s(r[3]);
-        const desc    = s(r[4]);
-        const base    = r[5] != null ? r[5] : '—';
-        const meta    = r[6] != null ? r[6] : '—';
-        const prob    = s(r[7]);
-        const prods   = _resProdMap[op + '|' + indId] || [];
-        const prodsHtml = prods.length
-          ? `<div class="res-prods">${prods.map(p => `<span class="res-prod-chip">${p}</span>`).join('')}</div>`
-          : '';
-        return `<div class="res-ind-row">
-          <span class="res-ind-id">${indId}</span>
-          <div class="res-ind-body">
-            <div class="res-ind-desc">${desc}</div>
-            <div class="res-ind-meta">
-              ${probPill(prob)}
-              <span class="res-ind-val">Línea base: <span>${base}</span></span>
-              <span class="res-ind-val">Meta: <span>${meta}</span></span>
-            </div>
-            ${prodsHtml}
-          </div>
-        </div>`;
-      }).join('');
-
-      return `<div class="res-obj-block">
-        <div class="res-obj-title">
-          <span class="res-obj-num">Obj. ${objId}</span>${obj.desc}
-        </div>
-        ${indsHtml}
-      </div>`;
-    }).join('');
-
-    const summaryPills = [
-      opAlta  ? `<span class="pill pill-green"  style="font-size:10px">${opAlta} Alta</span>`  : '',
-      opMedia ? `<span class="pill pill-yellow" style="font-size:10px">${opMedia} Media</span>` : '',
-      opBaja  ? `<span class="pill pill-red"    style="font-size:10px">${opBaja} Baja</span>`  : '',
-    ].filter(Boolean).join('');
-
-    grid.innerHTML += `<div class="res-op-block">
-      <div class="res-op-head">
-        <span class="res-op-name">${op}</span>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">${summaryPills}</div>
-      </div>
-      ${objsHtml}
     </div>`;
   });
 }
