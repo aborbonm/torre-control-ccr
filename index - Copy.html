@@ -560,12 +560,11 @@ function renderAll(wb, csvText) {
   renderPMR(wb);
   renderClausulasV(wb, csvText || '');
   renderClausulas180CSV(csvText || '');
-  renderClausulas180(wb);
   renderProductos(wb);
   renderEquipo(wb);
   renderDocumentos(wb);
   renderChangelog(wb);
-  renderResumen(wb);
+  renderResumen(wb, csvText || '');
 }
 
 function renderClausulasV(wb, csvText) {
@@ -659,11 +658,6 @@ function renderClausulasV(wb, csvText) {
 
   document.getElementById('s-cv').textContent = data.length;
   document.getElementById('badge-cv').textContent = data.length;
-}
-
-function renderClausulas180(wb) {
-  // Kept for renderResumen alertas — reads from xlsx (legacy)
-  // Main tab rendering is done by renderClausulas180CSV
 }
 
 function renderClausulas180CSV(csvText) {
@@ -1069,7 +1063,7 @@ function renderPMR(wb) {
   function indColor(v) {
     const n = parseFloat(String(v).replace(',','.'));
     if (isNaN(n)) return 'var(--muted)';
-    return n >= 0.95 ? 'var(--green)' : n >= 0.75 ? 'var(--yellow)' : 'var(--red)';
+    return n >= 0.8 ? 'var(--green)' : n >= 0.4 ? 'var(--yellow)' : 'var(--red)';
   }
 
   const grid = document.getElementById('pmr-grid');
@@ -1164,7 +1158,7 @@ function renderPMR(wb) {
   });
 }
 
-function renderResumen(wb) {
+function renderResumen(wb, csvText) {
   // Products by op
   const ws = getSheet(wb, 'producto'); if (!ws) return;
   const rows = sheetToArr(ws);
@@ -1193,28 +1187,95 @@ function renderResumen(wb) {
     </tr>`;
   });
 
-  // Alertas desde clausulas 180
-  const ws180 = getSheet(wb, '180'); if (!ws180) return;
-  const rows180 = sheetToArr(ws180);
-  const hIdx180 = rows180.findIndex(r => r.some(c => String(c||'').includes('Clause ID')));
-  // clausulas 180 col B start: 0=ClauseID,2=ContractID,7=Desc,8=Fecha,9=Dias
-  const urgent = rows180.slice(hIdx180+1).filter(r => r[0] != null && parseInt(r[9]) <= 30);
+  // Alertas ≤30 días desde CSV (mismo parser que renderClausulasV)
   const tAlert = document.getElementById('t-alertas');
   tAlert.innerHTML = '';
-  urgent.sort((a,b)=>(parseInt(a[9])||0)-(parseInt(b[9])||0)).forEach(r => {
-    const dias = parseInt(r[9])||0;
-    const pc = dias <= 7 ? 'pill-red' : 'pill-red';
-    const label = dias <= 7 ? 'Crítico' : dias <= 15 ? 'Urgente' : 'Próximo';
-    tAlert.innerHTML += `<tr>
-      <td><span class="pill ${pc}">${label}</span></td>
-      <td class="mono">${s(r[2])}</td>
-      <td style="font-size:13px">${s(r[7])}</td>
-      <td class="mono">${fmtDate(r[8])}</td>
-      <td><div class="days-bar"><div class="bar" style="width:${Math.max(8,dias*3)}px;background:var(--red)"></div><span class="days-num" style="color:var(--red)">${dias}d</span></div></td>
-    </tr>`;
-  });
-  if (!urgent.length) {
-    tAlert.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);font-family:var(--mono);font-size:12px;padding:20px">Sin vencimientos en los próximos 30 días</td></tr>`;
+
+  if (csvText) {
+    const todayA = new Date(); todayA.setHours(0,0,0,0);
+    const limitA = new Date(todayA); limitA.setDate(limitA.getDate() + 30);
+
+    function parseDateA(str) {
+      if (!str) return null;
+      const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+      const parts = str.trim().split('-');
+      if (parts.length !== 3) return null;
+      const day = parseInt(parts[0]);
+      const mon = months[parts[1].toLowerCase()];
+      let year  = parseInt(parts[2]);
+      if (year < 100) year += 2000;
+      if (isNaN(day) || mon === undefined || isNaN(year)) return null;
+      return new Date(year, mon, day);
+    }
+
+    function parseCSVA(text) {
+      const lines = [];
+      let cur = '';
+      for (let ci = 0; ci < text.length; ci++) {
+        const ch = text[ci];
+        if (ch === '\n') { lines.push(cur.replace(/\r$/, '')); cur = ''; }
+        else { cur += ch; }
+      }
+      if (cur.trim()) lines.push(cur);
+      const hIdx = lines.findIndex(function(l) { return l.indexOf('Clause_ID') >= 0; });
+      if (hIdx < 0) return [];
+      const headers = [];
+      let hStr = '', hInQ = false;
+      const hLine = lines[hIdx] + ',';
+      for (let ci = 0; ci < hLine.length; ci++) {
+        const ch = hLine[ci];
+        if (ch === '"') { hInQ = !hInQ; }
+        else if (ch === ',' && !hInQ) { headers.push(hStr.trim()); hStr = ''; }
+        else { hStr += ch; }
+      }
+      const result = [];
+      for (let i = hIdx + 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const vals = []; let v = '', inQ = false;
+        const rowLine = lines[i] + ',';
+        for (let ci = 0; ci < rowLine.length; ci++) {
+          const ch = rowLine[ci];
+          if (ch === '"') { inQ = !inQ; }
+          else if (ch === ',' && !inQ) { vals.push(v.trim()); v = ''; }
+          else { v += ch; }
+        }
+        if (vals.length < 3) continue;
+        const row = {};
+        headers.forEach(function(hdr, idx) { row[hdr] = vals[idx] !== undefined ? vals[idx] : ''; });
+        result.push(row);
+      }
+      return result;
+    }
+
+    const allRowsA = parseCSVA(csvText);
+    const urgent = allRowsA.filter(r => {
+      if (r['Lending_Instrument1'] !== 'INV') return false;
+      if (r['Clause_Status__English_'] !== 'TRACK') return false;
+      const d = parseDateA(r['Clause_Current_Expiration_Date']);
+      return d && d > todayA && d <= limitA;
+    }).sort((a, b) => {
+      return (parseDateA(a['Clause_Current_Expiration_Date'])||0) - (parseDateA(b['Clause_Current_Expiration_Date'])||0);
+    });
+
+    urgent.forEach(r => {
+      const d = parseDateA(r['Clause_Current_Expiration_Date']);
+      const dias = d ? Math.ceil((d - todayA) / 86400000) : 0;
+      const fechaStr = d ? d.toLocaleDateString('es-CR',{day:'2-digit',month:'short',year:'numeric'}) : r['Clause_Current_Expiration_Date'];
+      const label = dias <= 7 ? 'Crítico' : dias <= 15 ? 'Urgente' : 'Próximo';
+      tAlert.innerHTML += `<tr>
+        <td><span class="pill pill-red">${label}</span></td>
+        <td class="mono">${r['Operation_Number1']}</td>
+        <td style="font-size:13px">${r['B_Clause_Description']}</td>
+        <td class="mono">${fechaStr}</td>
+        <td><div class="days-bar"><div class="bar" style="width:${Math.max(8,dias*3)}px;background:var(--red)"></div><span class="days-num" style="color:var(--red)">${dias}d</span></div></td>
+      </tr>`;
+    });
+
+    if (!urgent.length) {
+      tAlert.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);font-family:var(--mono);font-size:12px;padding:20px">Sin vencimientos en los próximos 30 días</td></tr>`;
+    }
+  } else {
+    tAlert.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);font-family:var(--mono);font-size:12px;padding:20px">Sin datos de cláusulas disponibles</td></tr>`;
   }
 }
 </script>
