@@ -980,6 +980,17 @@ let _resProdMap = {};  // "op|indId" -> [productos]
 let _resActiveOp = null;
 
 function renderResultados(wb) {
+  // ── Read datos_ops for op names (col B=codigo, col E=nombre) ──
+  const wsOps = getSheet(wb, 'datos_ops');
+  const _opNames = {};
+  if (wsOps) {
+    sheetToArr(wsOps).forEach(r => {
+      const codigo = s(r[1]);   // col B = idx 1 (sheet starts col B, idx 0 is None)
+      const nombre = s(r[4]);   // col E = idx 4
+      if (codigo && nombre && !_opNames[codigo]) _opNames[codigo] = nombre;
+    });
+  }
+
   // ── Read resultados sheet ──
   const wsR = getSheet(wb, 'resultados');
   if (!wsR) return;
@@ -988,6 +999,7 @@ function renderResultados(wb) {
   const hR = rowsR.findIndex(r => String(r[0]||'').trim() === 'Operacion');
   if (hR < 0) return;
   _resData = rowsR.slice(hR+1).filter(r => r[0] != null);
+  _resData._opNames = _opNames;   // attach for use in renderResGrid
 
   // ── Read productos_resultados sheet ──
   const wsP = getSheet(wb, 'productos_resultados');
@@ -1129,9 +1141,13 @@ function renderResGrid() {
       opBaja  ? `<span class="pill pill-red"    style="font-size:10px">${opBaja} Baja</span>`  : '',
     ].filter(Boolean).join('');
 
+    const opNombre = (_resData._opNames && _resData._opNames[op]) ? _resData._opNames[op] : '';
     grid.innerHTML += `<div class="res-op-block">
       <div class="res-op-head">
-        <span class="res-op-name">${op}</span>
+        <div>
+          <span class="res-op-name">${op}</span>
+          ${opNombre ? `<span style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:10px;">${opNombre}</span>` : ''}
+        </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">${summaryPills}</div>
       </div>
       ${objsHtml}
