@@ -985,8 +985,8 @@ function renderResultados(wb) {
   const _opNames = {};
   if (wsOps) {
     sheetToArr(wsOps).forEach(r => {
-      const codigo = s(r[1]);   // col B = idx 1 (sheet starts col B, idx 0 is None)
-      const nombre = s(r[4]);   // col E = idx 4
+      const codigo = s(r[0]);   // col B = idx 0 (sheet starts at col B)
+      const nombre = s(r[3]);   // col E = idx 3
       if (codigo && nombre && !_opNames[codigo]) _opNames[codigo] = nombre;
     });
   }
