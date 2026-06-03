@@ -192,11 +192,11 @@
 <nav>
   <div class="tab active" onclick="showTab('resumen',this)">Resumen</div>
   <div class="tab" onclick="showTab('clausulas-v',this)">Cláusulas Vencidas <span class="badge badge-red" id="badge-cv">—</span></div>
-  <div class="tab" onclick="showTab('clausulas-180',this)">Cláusulas 180 días <span class="badge badge-yellow" id="badge-180">—</span></div>
-  <div class="tab" onclick="showTab('resultados-tab',this)">Resultados</div>
+  <div class="tab" onclick="showTab('clausulas-180',this)">Próx. 180 días <span class="badge badge-yellow" id="badge-180">—</span></div>
   <div class="tab" onclick="showTab('productos',this)">Productos Críticos</div>
   <div class="tab" onclick="showTab('equipo',this)">Equipo</div>
   <div class="tab" onclick="showTab('documentos',this)">Documentos</div>
+  <div class="tab" onclick="showTab('resultados-tab',this)">Resultados</div>
   <div class="tab" onclick="showTab('pmr',this)">PMR</div>
   <div class="tab" onclick="showTab('changelog',this)">Change Log <span class="badge badge-blue" id="badge-cl">—</span></div>
 </nav>
@@ -238,11 +238,24 @@
       <div class="stat-card red"><div class="stat-label">Retrasados</div><div class="stat-value" id="p-ret">—</div></div>
     </div>
 
-    <!-- Filtro operación -->
-    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;align-items:center;">
-      <span style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);">Operación:</span>
-      <div id="filter-ops" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
-      <button onclick="resetProdFilter()" style="font-family:var(--mono);font-size:11px;background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:100px;cursor:pointer;margin-left:8px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">↺ Todas</button>
+    <!-- Filtros -->
+    <div id="prod-filters" style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;margin-bottom:18px;padding:16px 18px;background:var(--surface);border:1px solid var(--border);border-radius:12px;">
+      <div>
+        <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px;">Operación</div>
+        <div id="filter-ops" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+      </div>
+      <div style="width:1px;background:var(--border);align-self:stretch;margin:0 4px;"></div>
+      <div>
+        <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px;">Estado</div>
+        <div id="filter-estados" style="display:flex;gap:6px;">
+          <button class="filter-btn active" data-estado="Logrado" onclick="toggleEstado(this)"><span class="pill pill-green" style="pointer-events:none">Logrado</span></button>
+          <button class="filter-btn active" data-estado="En tiempo" onclick="toggleEstado(this)"><span class="pill pill-yellow" style="pointer-events:none">En tiempo</span></button>
+          <button class="filter-btn active" data-estado="Retrasado" onclick="toggleEstado(this)"><span class="pill pill-red" style="pointer-events:none">Retrasado</span></button>
+        </div>
+      </div>
+      <div style="margin-left:auto;align-self:center;">
+        <button onclick="resetFiltros()" style="font-family:var(--mono);font-size:11px;background:transparent;border:1px solid var(--border);color:var(--muted);padding:5px 12px;border-radius:100px;cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">↺ Limpiar filtros</button>
+      </div>
     </div>
     <div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:10px;" id="prod-count"></div>
 
@@ -791,9 +804,10 @@ function renderClausulas180CSV(csvText) {
   document.getElementById('badge-180').textContent = data.length;
 }
 
-// ── Productos: datos globales y filtro por operación ──
+// ── Productos: datos globales y estado de filtros ──
 let _prodData = [];
-let _prodActiveOp = null;
+let _activeOps = new Set();
+let _activeEstados = new Set(['Logrado','En tiempo','Retrasado']);
 
 function renderProductos(wb) {
   const ws = getSheet(wb, 'producto'); if (!ws) return;
@@ -802,7 +816,7 @@ function renderProductos(wb) {
   // col B start: 0=Operacion,1=Producto,2=Estado,3=Adquisicion,4=Riesgos
   _prodData = rows.slice(hIdx+1).filter(r => r[0] != null);
 
-  // Conteos globales
+  // Conteos globales (sin filtro)
   let log=0, ent=0, ret=0;
   _prodData.forEach(r => {
     const e = s(r[2]).toLowerCase();
@@ -816,9 +830,9 @@ function renderProductos(wb) {
   document.getElementById('s-ret').textContent = ret;
   document.getElementById('s-ret-sub').textContent = `De ${_prodData.length} productos críticos`;
 
-  // Botones de operación (single-toggle, igual que Resultados)
+  // Construir botones de operación dinámicamente
   const ops = [...new Set(_prodData.map(r => s(r[0])).filter(Boolean))];
-  _prodActiveOp = null;
+  _activeOps = new Set(ops); // todas activas por defecto
   const filterOps = document.getElementById('filter-ops');
   filterOps.innerHTML = '';
   ops.forEach(op => {
@@ -826,44 +840,69 @@ function renderProductos(wb) {
     btn.className = 'filter-op-btn active';
     btn.textContent = op;
     btn.dataset.op = op;
-    btn.onclick = () => selectProdOp(btn, op);
+    btn.onclick = () => toggleOp(btn);
     filterOps.appendChild(btn);
   });
 
-  applyProdFiltro();
+  applyFiltros();
 }
 
-function selectProdOp(btn, op) {
-  const allBtns = document.querySelectorAll('#filter-ops .filter-op-btn');
-  if (_prodActiveOp === op) {
-    _prodActiveOp = null;
-    allBtns.forEach(b => b.classList.add('active'));
+function toggleOp(btn) {
+  const op = btn.dataset.op;
+  if (_activeOps.has(op)) {
+    // Si es el último activo, no permitir deseleccionar
+    if (_activeOps.size === 1) return;
+    _activeOps.delete(op);
+    btn.classList.remove('active');
   } else {
-    _prodActiveOp = op;
-    allBtns.forEach(b => b.classList.toggle('active', b.dataset.op === op));
+    _activeOps.add(op);
+    btn.classList.add('active');
   }
-  applyProdFiltro();
+  applyFiltros();
 }
 
-function resetProdFilter() {
-  _prodActiveOp = null;
-  document.querySelectorAll('#filter-ops .filter-op-btn').forEach(b => b.classList.add('active'));
-  applyProdFiltro();
+function toggleEstado(btn) {
+  const estado = btn.dataset.estado;
+  if (_activeEstados.has(estado)) {
+    if (_activeEstados.size === 1) return;
+    _activeEstados.delete(estado);
+    btn.classList.remove('active');
+  } else {
+    _activeEstados.add(estado);
+    btn.classList.add('active');
+  }
+  applyFiltros();
 }
 
-function applyProdFiltro() {
+function resetFiltros() {
+  // Activar todas las ops
+  document.querySelectorAll('.filter-op-btn').forEach(btn => {
+    _activeOps.add(btn.dataset.op);
+    btn.classList.add('active');
+  });
+  // Activar todos los estados
+  _activeEstados = new Set(['Logrado','En tiempo','Retrasado']);
+  document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.add('active'));
+  applyFiltros();
+}
+
+function applyFiltros() {
   const tbody = document.getElementById('t-productos');
   tbody.innerHTML = '';
   let shown = 0;
   _prodData.forEach(r => {
     const op = s(r[0]);
-    if (_prodActiveOp && op !== _prodActiveOp) return;
+    const estado = s(r[2]);
+    const estadoLower = estado.toLowerCase();
+    // Match estado
+    const estadoMatch = [..._activeEstados].some(e => estadoLower.includes(e.toLowerCase()));
+    if (!_activeOps.has(op) || !estadoMatch) return;
     shown++;
     const riesgo = s(r[4]);
     tbody.innerHTML += `<tr>
       <td class="mono">${op}</td>
       <td style="font-size:13px;line-height:1.5">${s(r[1])}</td>
-      <td>${pill(s(r[2]))}</td>
+      <td>${pill(estado)}</td>
       <td style="font-size:12px;color:var(--muted)">${s(r[3])||'—'}</td>
       <td style="font-size:12px;color:${riesgo?'var(--yellow)':'var(--muted)'}">${riesgo||'—'}</td>
     </tr>`;
