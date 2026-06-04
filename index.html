@@ -191,8 +191,7 @@
 
 <nav>
   <div class="tab active" onclick="showTab('resumen',this)">Resumen</div>
-  <div class="tab" onclick="showTab('clausulas-v',this)">Cláusulas Vencidas <span class="badge badge-red" id="badge-cv">—</span></div>
-  <div class="tab" onclick="showTab('clausulas-180',this)">Cláusulas 180 días <span class="badge badge-yellow" id="badge-180">—</span></div>
+  <div class="tab" onclick="showTab('clausulas-v',this)">Cláusulas <span class="badge badge-red" id="badge-cv">—</span> <span class="badge badge-yellow" id="badge-180">—</span></div>
   <div class="tab" onclick="showTab('resultados-tab',this)">Resultados</div>
   <div class="tab" onclick="showTab('productos',this)">Productos Críticos</div>
   <div class="tab" onclick="showTab('equipo',this)">Equipo</div>
@@ -221,10 +220,7 @@
       <thead><tr><th>Clause ID</th><th>N° Cláusula</th><th>Programa</th><th>Operación</th><th>Tipo</th><th>Descripción</th><th>Vencimiento</th><th>Comentario</th></tr></thead>
       <tbody id="t-clausulas-v"></tbody>
     </table></div>
-  </div>
-
-  <div id="clausulas-180" class="panel">
-    <div class="section-head"><h2>Cláusulas próximas a vencer (180 días)</h2></div>
+    <div class="section-head" style="margin-top:12px"><h2>Cláusulas próximas a vencer (180 días)</h2></div>
     <div class="table-wrap"><table>
       <thead><tr><th>Clause ID</th><th>N° Cláusula</th><th>Programa</th><th>Operación</th><th>Tipo</th><th>Descripción</th><th>Vencimiento</th><th>Días restantes</th></tr></thead>
       <tbody id="t-clausulas-180"></tbody>
