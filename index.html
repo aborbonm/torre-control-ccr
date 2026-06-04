@@ -576,6 +576,50 @@ function pill(text) {
 const s = v => v != null ? String(v).trim() : '';
 const linkIcon = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
 
+// ── Comentarios de cláusulas ──
+// Returns a map: Clause_ID → most recent comment object {fecha, estado, comentario}
+function buildComentariosMap(wb) {
+  const ws = getSheet(wb, 'comentarios_clausulas');
+  if (!ws) return {};
+  const rows = sheetToArr(ws);
+  if (rows.length < 2) return {};
+  // Header row: Clause_ID, Fecha_Comentario, Autor, Comentario, Estado_Gestion, Fecha_Compromiso
+  const hdr = rows[0].map(h => s(h).toLowerCase());
+  const iId     = hdr.indexOf('clause_id');
+  const iFecha  = hdr.indexOf('fecha_comentario');
+  const iComent = hdr.indexOf('comentario');
+  const iEstado = hdr.indexOf('estado_gestion');
+  const iFComp  = hdr.indexOf('fecha_compromiso');
+  if (iId < 0 || iComent < 0) return {};
+  const map = {};
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const id = s(row[iId]);
+    if (!id) continue;
+    const fechaRaw = iFecha >= 0 ? row[iFecha] : null;
+    let fechaDate = null;
+    if (fechaRaw instanceof Date) fechaDate = fechaRaw;
+    else if (typeof fechaRaw === 'number') fechaDate = new Date(Math.round((fechaRaw - 25569) * 86400 * 1000));
+    const entry = {
+      fechaDate,
+      fechaStr: fechaDate ? fechaDate.toLocaleDateString('es-CR',{day:'2-digit',month:'short',year:'numeric'}) : (fechaRaw ? s(fechaRaw) : ''),
+      comentario: iComent >= 0 ? s(row[iComent]) : '',
+      estado: iEstado >= 0 ? s(row[iEstado]) : '',
+      fechaCompStr: iFComp >= 0 && row[iFComp] ? fmtDate(row[iFComp]) : ''
+    };
+    if (!map[id]) {
+      map[id] = entry;
+    } else {
+      // Keep most recent by fecha
+      const prev = map[id];
+      if (entry.fechaDate && (!prev.fechaDate || entry.fechaDate > prev.fechaDate)) {
+        map[id] = entry;
+      }
+    }
+  }
+  return map;
+}
+
 // ── Render all ──
 function renderAll(wb, csvText) {
   const wsEq = getSheet(wb, 'equipo');
@@ -667,11 +711,28 @@ function renderClausulasV(wb, csvText) {
     return d && d < today;
   });
 
+  const comentMap = buildComentariosMap(wb);
+
   const tbody = document.getElementById('t-clausulas-v');
   tbody.innerHTML = '';
   data.forEach(r => {
     const d = parseExpDate(r['Clause_Current_Expiration_Date']);
     const fechaStr = d ? d.toLocaleDateString('es-CR',{day:'2-digit',month:'short',year:'numeric'}) : r['Clause_Current_Expiration_Date'];
+    const cm = comentMap[r['Clause_ID']];
+    let comentCell = '<span style="color:var(--muted)">—</span>';
+    if (cm && cm.comentario) {
+      const estadoColors = { 'en gestión':'#b8860b', 'resuelto':'#2e7d32', 'escalado':'#c62828' };
+      const estadoKey = cm.estado.toLowerCase();
+      const badgeColor = estadoColors[estadoKey] || 'var(--muted)';
+      const badgeBg   = estadoKey === 'en gestión' ? '#fff8e1' : estadoKey === 'resuelto' ? '#e8f5e9' : estadoKey === 'escalado' ? '#ffebee' : 'transparent';
+      const estadoBadge = cm.estado
+        ? `<span style="display:inline-block;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;background:${badgeBg};color:${badgeColor};border:1px solid ${badgeColor};margin-bottom:4px">${cm.estado}</span><br>`
+        : '';
+      const meta = [];
+      if (cm.fechaStr)     meta.push(`<span style="color:var(--muted);font-size:11px">${cm.fechaStr}</span>`);
+      if (cm.fechaCompStr) meta.push(`<span style="color:var(--muted);font-size:11px">Compromiso: ${cm.fechaCompStr}</span>`);
+      comentCell = `<div style="min-width:160px">${estadoBadge}<span style="font-size:12px;line-height:1.5">${cm.comentario}</span>${meta.length ? '<br>' + meta.join(' · ') : ''}</div>`;
+    }
     tbody.innerHTML += `<tr>
       <td class="mono">${r['Clause_ID']}</td>
       <td class="mono">${r['Clause_Number']}</td>
@@ -680,7 +741,7 @@ function renderClausulasV(wb, csvText) {
       <td>${pill(r['Clause_Type__English_'])}</td>
       <td style="font-size:13px;line-height:1.5">${r['B_Clause_Description']}</td>
       <td class="mono" style="color:var(--red)">${fechaStr}</td>
-      <td style="color:var(--muted)">—</td>
+      <td>${comentCell}</td>
     </tr>`;
   });
 
