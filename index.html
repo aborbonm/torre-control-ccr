@@ -1106,17 +1106,17 @@ function renderChangelog(wb) {
   const ws = getSheet(wb, 'change') || getSheet(wb, 'log'); if (!ws) return;
   const rows = sheetToArr(ws);
   const hIdx = rows.findIndex(r => r.some(c => String(c||'').toLowerCase().includes('fecha')));
-  // col B start: 0=Fecha,1=Tab,2=Operacion,3=Accion
-  const data = rows.slice(hIdx+1).filter(r => r[0] != null);
+  // layout: 0=null(A), 1=Fecha, 2=Tab, 3=Operacion, 4=Accion
+  const data = rows.slice(hIdx+1).filter(r => r[1] != null);
   document.getElementById('badge-cl').textContent = data.length;
   const list = document.getElementById('changelog-list');
   list.innerHTML = '';
   [...data].reverse().forEach(r => {
     list.innerHTML += `<div class="log-row">
-      <span class="log-date">${fmtDate(r[0])}</span>
-      <span class="log-tab">${s(r[1])}</span>
-      <span class="log-op">${s(r[2])}</span>
-      <span style="font-size:12px">${s(r[3])}</span>
+      <span class="log-date">${fmtDate(r[1])}</span>
+      <span class="log-tab">${s(r[2])}</span>
+      <span class="log-op">${s(r[3])}</span>
+      <span style="font-size:12px">${s(r[4])}</span>
     </div>`;
   });
 }
