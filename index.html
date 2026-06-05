@@ -119,7 +119,7 @@
   .filter-op-btn{font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:100px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;}
   .filter-op-btn.active{background:rgba(0,212,255,.1);border-color:var(--accent);color:var(--accent);}
   .filter-op-btn:hover{border-color:var(--accent);color:var(--accent);}
-  .log-date{font-family:var(--mono);font-size:11px;color:var(--muted);min-width:88px;}
+  .log-date{font-family:var(--mono);font-size:11px;color:var(--text);min-width:88px;}
   .log-tab{font-family:var(--mono);font-size:11px;color:var(--accent2);min-width:130px;}
   .log-op{font-family:var(--mono);font-size:11px;color:var(--accent);min-width:75px;}
 
@@ -583,10 +583,19 @@ function sheetToArr(ws) {
 function fmtDate(v) {
   if (!v) return '—';
   let d;
-  if (v instanceof Date) d = v;
-  else if (typeof v === 'number') d = new Date(Math.round((v - 25569) * 86400 * 1000));
-  else return String(v).slice(0,10);
-  return d.toLocaleDateString('es-CR',{day:'2-digit',month:'short',year:'numeric'});
+  if (v instanceof Date) {
+    d = v;
+  } else if (typeof v === 'number') {
+    // Excel serial → UTC date to avoid timezone day-shift
+    const days = Math.round(v - 25569);
+    d = new Date(Date.UTC(1970, 0, 1 + days));
+  } else {
+    // "M/D/YYYY" or "MM/DD/YYYY" stored as text in Excel
+    const m = String(v).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) d = new Date(Date.UTC(+m[3], +m[1] - 1, +m[2]));
+    else return String(v).slice(0, 10);
+  }
+  return d.toLocaleDateString('es-CR', {day:'2-digit', month:'short', year:'numeric', timeZone:'UTC'});
 }
 
 function pill(text) {
