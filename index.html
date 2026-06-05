@@ -1115,17 +1115,32 @@ function renderChangelog(wb) {
   const ws = getSheet(wb, 'change') || getSheet(wb, 'log'); if (!ws) return;
   const rows = sheetToArr(ws);
   const hIdx = rows.findIndex(r => r.some(c => String(c||'').toLowerCase().includes('fecha')));
-  // layout: 0=null(A), 1=Fecha, 2=Tab, 3=Operacion, 4=Accion
-  const data = rows.slice(hIdx+1).filter(r => r[1] != null);
+  if (hIdx < 0) return;
+
+  // Detect column positions dynamically from the header row
+  const hdr = rows[hIdx].map(c => String(c||'').toLowerCase());
+  const iF = hdr.findIndex(c => c.includes('fecha'));
+  const iT = hdr.findIndex(c => c.includes('tab'));
+  const iO = hdr.findIndex(c => c.includes('oper') || c.includes('operaci'));
+  const iA = hdr.findIndex(c => c.includes('acci'));
+
+  // Filter rows that have content in tab or action column (not the header)
+  const anchorCol = iT >= 0 ? iT : iA >= 0 ? iA : 0;
+  const data = rows.slice(hIdx + 1).filter(r => r[anchorCol] != null && r[anchorCol] !== '');
+
   document.getElementById('badge-cl').textContent = data.length;
   const list = document.getElementById('changelog-list');
   list.innerHTML = '';
   [...data].reverse().forEach(r => {
+    const fecha = iF >= 0 ? fmtDate(r[iF]) : '—';
+    const tab   = iT >= 0 ? s(r[iT]) : '';
+    const op    = iO >= 0 ? s(r[iO]) : '';
+    const act   = iA >= 0 ? s(r[iA]) : '';
     list.innerHTML += `<div class="log-row">
-      <span class="log-date">${fmtDate(r[1])}</span>
-      <span class="log-tab">${s(r[2])}</span>
-      <span class="log-op">${s(r[3])}</span>
-      <span style="font-size:12px">${s(r[4])}</span>
+      <span class="log-date">${fecha}</span>
+      <span class="log-tab">${tab}</span>
+      <span class="log-op">${op}</span>
+      <span style="font-size:12px">${act}</span>
     </div>`;
   });
 }
