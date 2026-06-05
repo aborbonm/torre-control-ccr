@@ -119,7 +119,7 @@
   .filter-op-btn{font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:100px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;}
   .filter-op-btn.active{background:rgba(0,212,255,.1);border-color:var(--accent);color:var(--accent);}
   .filter-op-btn:hover{border-color:var(--accent);color:var(--accent);}
-  .log-date{font-family:var(--mono);font-size:11px;color:var(--text);min-width:88px;}
+  .log-date{font-family:var(--mono);font-size:11px;color:var(--muted);min-width:88px;}
   .log-tab{font-family:var(--mono);font-size:11px;color:var(--accent2);min-width:130px;}
   .log-op{font-family:var(--mono);font-size:11px;color:var(--accent);min-width:75px;}
 
@@ -151,37 +151,6 @@
   .pmr-indicator{display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;min-width:72px;}
   .pmr-ind-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;color:var(--muted);letter-spacing:.05em;text-align:center;}
   .pmr-ind-value{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text);}
-  /* ── Tab Documentos — tarjetas ── */
-  .doc-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:border-color .2s;}
-  .doc-card:hover{border-color:rgba(0,212,255,.3);}
-  .doc-card-head{padding:14px 18px 12px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
-  .doc-op-id{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--accent);letter-spacing:.02em;}
-  .doc-op-name{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:3px;line-height:1.4;max-width:220px;}
-  .doc-count-chip{font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:100px;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);color:var(--accent);white-space:nowrap;flex-shrink:0;align-self:flex-start;margin-top:2px;}
-  .doc-icons-area{padding:16px 18px 18px;display:flex;flex-wrap:wrap;gap:10px;}
-  .doc-icon-btn{display:flex;flex-direction:column;align-items:center;gap:6px;text-decoration:none;cursor:pointer;background:none;border:none;padding:0;}
-  .doc-icon-wrap{width:52px;height:52px;border-radius:10px;display:flex;align-items:center;justify-content:center;border:1px solid transparent;transition:all .18s;}
-  .doc-icon-btn:hover .doc-icon-wrap{transform:translateY(-2px);filter:brightness(1.18);box-shadow:0 4px 12px rgba(0,0,0,.3);}
-  .doc-icon-label{font-family:var(--mono);font-size:9px;color:var(--muted);text-align:center;max-width:56px;line-height:1.3;transition:color .15s;}
-  .doc-icon-btn:hover .doc-icon-label{color:var(--text);}
-  .doc-icon-btn.no-link{opacity:.42;cursor:default;}
-  .doc-icon-btn.no-link .doc-icon-wrap{filter:none!important;transform:none!important;box-shadow:none!important;}
-  /* colores por tipo */
-  .dtype-firma  {background:rgba(16,185,129,.1); border-color:rgba(16,185,129,.3); color:#10b981;}
-  .dtype-pp     {background:rgba(0,212,255,.1);  border-color:rgba(0,212,255,.3);  color:#00d4ff;}
-  .dtype-pod    {background:rgba(124,58,237,.12);border-color:rgba(124,58,237,.35);color:#a78bfa;}
-  .dtype-lp     {background:rgba(245,158,11,.1); border-color:rgba(245,158,11,.3); color:#f59e0b;}
-  .dtype-lp-mod {background:rgba(249,115,22,.12);border-color:rgba(249,115,22,.38);color:#fb923c;}
-  .dtype-lc     {background:rgba(239,68,68,.1);  border-color:rgba(239,68,68,.3);  color:#ef4444;}
-  .dtype-lc-mod {background:rgba(251,113,133,.1);border-color:rgba(251,113,133,.35);color:#fb7185;}
-  .dtype-rop    {background:rgba(59,130,246,.1); border-color:rgba(59,130,246,.3); color:#60a5fa;}
-  .dtype-pf     {background:rgba(236,72,153,.1); border-color:rgba(236,72,153,.3); color:#f472b6;}
-  .dtype-rat    {background:rgba(251,191,36,.1); border-color:rgba(251,191,36,.3); color:#fbbf24;}
-  .dtype-pol    {background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);color:#c4b5fd;}
-  .dtype-default{background:rgba(100,116,139,.08);border-color:rgba(100,116,139,.2);color:#64748b;}
-  .docs-legend-item{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--muted);}
-  .docs-legend-dot{width:9px;height:9px;border-radius:3px;}
-
   @media(max-width:900px){
     header{padding:14px 18px;}nav{padding:10px 18px 0;}main{padding:16px 18px;}
     .stat-row{grid-template-columns:repeat(2,1fr);}
@@ -222,7 +191,8 @@
 
 <nav>
   <div class="tab active" onclick="showTab('resumen',this)">Resumen</div>
-  <div class="tab" onclick="showTab('clausulas-v',this)">Cláusulas <span class="badge badge-red" id="badge-cv">—</span> <span class="badge badge-yellow" id="badge-180">—</span></div>
+  <div class="tab" onclick="showTab('clausulas-v',this)">Cláusulas Vencidas <span class="badge badge-red" id="badge-cv">—</span></div>
+  <div class="tab" onclick="showTab('clausulas-180',this)">Cláusulas 180 días <span class="badge badge-yellow" id="badge-180">—</span></div>
   <div class="tab" onclick="showTab('resultados-tab',this)">Resultados</div>
   <div class="tab" onclick="showTab('productos',this)">Productos Críticos</div>
   <div class="tab" onclick="showTab('equipo',this)">Equipo</div>
@@ -237,7 +207,7 @@
       <div class="stat-card red"><div class="stat-label">Cláusulas vencidas</div><div class="stat-value" id="s-cv">—</div><div class="stat-sub">Requieren atención inmediata</div></div>
       <div class="stat-card yellow"><div class="stat-label">Vencen en 180 días</div><div class="stat-value" id="s-180">—</div><div class="stat-sub">En seguimiento</div></div>
       <div class="stat-card red"><div class="stat-label">Productos críticos retrasados</div><div class="stat-value" id="s-ret">—</div><div class="stat-sub" id="s-ret-sub">Cargando…</div></div>
-      <div class="stat-card blue"><div class="stat-label">Operaciones activas</div><div class="stat-value" id="s-ops">—</div><div class="stat-sub" id="s-ops-sub">Cargando…</div></div>
+      <div class="stat-card blue"><div class="stat-label">Operaciones activas</div><div class="stat-value" id="s-ops">—</div><div class="stat-sub">CR-L, CR-J, CR-G</div></div>
     </div>
     <div class="section-head"><h2>Estado de productos críticos por operación</h2></div>
     <div class="table-wrap"><table><thead><tr><th>Operación</th><th>Logrado</th><th>En tiempo</th><th>Retrasado</th><th>Total</th></tr></thead><tbody id="t-resumen"></tbody></table></div>
@@ -251,7 +221,10 @@
       <thead><tr><th>Clause ID</th><th>N° Cláusula</th><th>Programa</th><th>Operación</th><th>Tipo</th><th>Descripción</th><th>Vencimiento</th><th>Comentario</th></tr></thead>
       <tbody id="t-clausulas-v"></tbody>
     </table></div>
-    <div class="section-head" style="margin-top:12px"><h2>Cláusulas próximas a vencer (180 días)</h2></div>
+  </div>
+
+  <div id="clausulas-180" class="panel">
+    <div class="section-head"><h2>Cláusulas próximas a vencer (180 días)</h2></div>
     <div class="table-wrap"><table>
       <thead><tr><th>Clause ID</th><th>N° Cláusula</th><th>Programa</th><th>Operación</th><th>Tipo</th><th>Descripción</th><th>Vencimiento</th><th>Días restantes</th></tr></thead>
       <tbody id="t-clausulas-180"></tbody>
@@ -286,11 +259,11 @@
   </div>
 
   <div id="documentos" class="panel">
-    <div class="section-head"><h2>Documentos por operación</h2></div>
-    <!-- Leyenda de tipos de documento -->
-    <div id="docs-legend" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;"></div>
-    <!-- Grid de tarjetas -->
-    <div id="docs-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;"></div>
+    <div class="section-head"><h2>Documentos por tipo y operación</h2></div>
+    <div class="table-wrap"><table>
+      <thead id="docs-head"></thead>
+      <tbody id="t-docs"></tbody>
+    </table></div>
   </div>
 
   <div id="resultados-tab" class="panel">
@@ -583,19 +556,10 @@ function sheetToArr(ws) {
 function fmtDate(v) {
   if (!v) return '—';
   let d;
-  if (v instanceof Date) {
-    d = v;
-  } else if (typeof v === 'number') {
-    // Excel serial → UTC date to avoid timezone day-shift
-    const days = Math.round(v - 25569);
-    d = new Date(Date.UTC(1970, 0, 1 + days));
-  } else {
-    // "M/D/YYYY" or "MM/DD/YYYY" stored as text in Excel
-    const m = String(v).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (m) d = new Date(Date.UTC(+m[3], +m[1] - 1, +m[2]));
-    else return String(v).slice(0, 10);
-  }
-  return d.toLocaleDateString('es-CR', {day:'2-digit', month:'short', year:'numeric', timeZone:'UTC'});
+  if (v instanceof Date) d = v;
+  else if (typeof v === 'number') d = new Date(Math.round((v - 25569) * 86400 * 1000));
+  else return String(v).slice(0,10);
+  return d.toLocaleDateString('es-CR',{day:'2-digit',month:'short',year:'numeric'});
 }
 
 function pill(text) {
@@ -611,50 +575,6 @@ function pill(text) {
 
 const s = v => v != null ? String(v).trim() : '';
 const linkIcon = `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
-
-// ── Comentarios de cláusulas ──
-// Returns a map: Clause_ID → most recent comment object {fecha, estado, comentario}
-function buildComentariosMap(wb) {
-  const ws = getSheet(wb, 'comentarios_clausulas');
-  if (!ws) return {};
-  const rows = sheetToArr(ws);
-  if (rows.length < 2) return {};
-  // Header row: Clause_ID, Fecha_Comentario, Autor, Comentario, Estado_Gestion, Fecha_Compromiso
-  const hdr = rows[0].map(h => s(h).toLowerCase());
-  const iId     = hdr.indexOf('clause_id');
-  const iFecha  = hdr.indexOf('fecha_comentario');
-  const iComent = hdr.indexOf('comentario');
-  const iEstado = hdr.indexOf('estado_gestion');
-  const iFComp  = hdr.indexOf('fecha_compromiso');
-  if (iId < 0 || iComent < 0) return {};
-  const map = {};
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    const id = s(row[iId]);
-    if (!id) continue;
-    const fechaRaw = iFecha >= 0 ? row[iFecha] : null;
-    let fechaDate = null;
-    if (fechaRaw instanceof Date) fechaDate = fechaRaw;
-    else if (typeof fechaRaw === 'number') fechaDate = new Date(Math.round((fechaRaw - 25569) * 86400 * 1000));
-    const entry = {
-      fechaDate,
-      fechaStr: fechaDate ? fechaDate.toLocaleDateString('es-CR',{day:'2-digit',month:'short',year:'numeric'}) : (fechaRaw ? s(fechaRaw) : ''),
-      comentario: iComent >= 0 ? s(row[iComent]) : '',
-      estado: iEstado >= 0 ? s(row[iEstado]) : '',
-      fechaCompStr: iFComp >= 0 && row[iFComp] ? fmtDate(row[iFComp]) : ''
-    };
-    if (!map[id]) {
-      map[id] = entry;
-    } else {
-      // Keep most recent by fecha
-      const prev = map[id];
-      if (entry.fechaDate && (!prev.fechaDate || entry.fechaDate > prev.fechaDate)) {
-        map[id] = entry;
-      }
-    }
-  }
-  return map;
-}
 
 // ── Render all ──
 function renderAll(wb, csvText) {
@@ -747,28 +667,11 @@ function renderClausulasV(wb, csvText) {
     return d && d < today;
   });
 
-  const comentMap = buildComentariosMap(wb);
-
   const tbody = document.getElementById('t-clausulas-v');
   tbody.innerHTML = '';
   data.forEach(r => {
     const d = parseExpDate(r['Clause_Current_Expiration_Date']);
     const fechaStr = d ? d.toLocaleDateString('es-CR',{day:'2-digit',month:'short',year:'numeric'}) : r['Clause_Current_Expiration_Date'];
-    const cm = comentMap[r['Clause_ID']];
-    let comentCell = '<span style="color:var(--muted)">—</span>';
-    if (cm && cm.comentario) {
-      const estadoColors = { 'en gestión':'#b8860b', 'resuelto':'#2e7d32', 'escalado':'#c62828' };
-      const estadoKey = cm.estado.toLowerCase();
-      const badgeColor = estadoColors[estadoKey] || 'var(--muted)';
-      const badgeBg   = estadoKey === 'en gestión' ? '#fff8e1' : estadoKey === 'resuelto' ? '#e8f5e9' : estadoKey === 'escalado' ? '#ffebee' : 'transparent';
-      const estadoBadge = cm.estado
-        ? `<span style="display:inline-block;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;background:${badgeBg};color:${badgeColor};border:1px solid ${badgeColor};margin-bottom:4px">${cm.estado}</span><br>`
-        : '';
-      const meta = [];
-      if (cm.fechaStr)     meta.push(`<span style="color:var(--muted);font-size:11px">${cm.fechaStr}</span>`);
-      if (cm.fechaCompStr) meta.push(`<span style="color:var(--muted);font-size:11px">Compromiso: ${cm.fechaCompStr}</span>`);
-      comentCell = `<div style="min-width:160px">${estadoBadge}<span style="font-size:12px;line-height:1.5">${cm.comentario}</span>${meta.length ? '<br>' + meta.join(' · ') : ''}</div>`;
-    }
     tbody.innerHTML += `<tr>
       <td class="mono">${r['Clause_ID']}</td>
       <td class="mono">${r['Clause_Number']}</td>
@@ -777,7 +680,7 @@ function renderClausulasV(wb, csvText) {
       <td>${pill(r['Clause_Type__English_'])}</td>
       <td style="font-size:13px;line-height:1.5">${r['B_Clause_Description']}</td>
       <td class="mono" style="color:var(--red)">${fechaStr}</td>
-      <td>${comentCell}</td>
+      <td style="color:var(--muted)">—</td>
     </tr>`;
   });
 
@@ -1003,144 +906,70 @@ function renderEquipo(wb) {
       <div class="op-body">${rolesHtml}${missingHtml}</div>
     </div>`;
   });
-  // s-ops se actualiza en renderResumen (fuente autoritativa: productos críticos)
+  document.getElementById('s-ops').textContent = ops.length;
 }
 
 function renderDocumentos(wb) {
   const ws = getSheet(wb, 'documentos'); if (!ws) return;
   const rows = sheetToArr(ws);
+  // Flat structure: col A start, 0=Operacion,1=Tipo,2=Nombre/ID,3=URL
   const hIdx = rows.findIndex(r => r.some(c => String(c||'').trim() === 'Operacion' || String(c||'').trim() === 'Operación'));
   if (hIdx < 0) return;
   const data = rows.slice(hIdx+1).filter(r => r[0] != null && r[1] != null);
 
-  // ── Leer nombres de operaciones desde datos_ops ──
-  const opNames = {};
-  const wsOps = getSheet(wb, 'datos_ops');
-  if (wsOps) {
-    sheetToArr(wsOps).forEach(r => {
-      const cod = s(r[0]); const nom = s(r[3]);
-      if (cod && nom && !opNames[cod]) opNames[cod] = nom;
-    });
-  }
-
-  // ── Mapa: tipo → clase CSS + SVG + color leyenda ──
-  const DTYPE = {
-    'firma autorizada':                   { cls:'dtype-firma',   color:'#10b981', label:'Firma autorizada',    svg:'<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>' },
-    'pp - perfil':                        { cls:'dtype-pp',      color:'#00d4ff', label:'PP — Perfil',          svg:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>' },
-    'pod - proposal operation development':{ cls:'dtype-pod',     color:'#a78bfa', label:'POD — Proposal',       svg:'<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>' },
-    'lp - loan proposal':                 { cls:'dtype-lp',      color:'#f59e0b', label:'LP — Loan proposal',   svg:'<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>' },
-    'lp - modification':                  { cls:'dtype-lp-mod',  color:'#fb923c', label:'LP — Modification',   svg:'<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><path d="M14 14.5a2 2 0 100 3h1.5"/><polyline points="14 16.5 15.5 18 14 19.5"/>' },
-    'lc - loan contract signed':          { cls:'dtype-lc',      color:'#ef4444', label:'LC — Loan contract',  svg:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/>' },
-    'lc - loan modification':             { cls:'dtype-lc-mod',  color:'#fb7185', label:'LC — Loan modification', svg:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h8"/><polyline points="14 2 14 8 20 8"/><path d="M18 13l-5 5-2 .5.5-2 5-5a1.414 1.414 0 012 2z"/>' },
-    'rop - operative manual':             { cls:'dtype-rop',     color:'#60a5fa', label:'ROP — Manual op.',     svg:'<path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>' },
-    'pf - financial plan':                { cls:'dtype-pf',      color:'#f472b6', label:'PF — Financial plan',  svg:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>' },
-    'ratificacion en al':                 { cls:'dtype-rat',     color:'#fbbf24', label:'Ratificación AL',      svg:'<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>' },
-    'policy waivers - consultive notes':  { cls:'dtype-pol',     color:'#c4b5fd', label:'Policy waivers',       svg:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>' },
-  };
-
-  function getDtype(tipo) {
-    return DTYPE[tipo.toLowerCase().trim()] || { cls:'dtype-default', color:'#64748b', label:tipo, svg:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>' };
-  }
-
-  function makeIcon(tipo, nombre, url, labelOverride) {
-    const dt = getDtype(tipo);
-    const shortTipo = dt.label;
-    const lbl = labelOverride || shortTipo;
-    const svgEl = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">${dt.svg}</svg>`;
-    const title = `${shortTipo} · ${nombre}`;
-    if (url) {
-      return `<a class="doc-icon-btn" href="${url}" target="_blank" title="${title}">
-        <div class="doc-icon-wrap ${dt.cls}">${svgEl}</div>
-        <span class="doc-icon-label">${lbl}</span>
-      </a>`;
-    }
-    return `<div class="doc-icon-btn no-link" title="${shortTipo} · Sin enlace">
-      <div class="doc-icon-wrap dtype-default">${svgEl}</div>
-      <span class="doc-icon-label">${lbl}<br>Sin enlace</span>
-    </div>`;
-  }
-
-  // ── Agrupar docs por operación ──
-  const byOp = {};
+  // Collect ordered tipos and ops
+  const tiposOrden = [];
+  const opsSeen = new Set();
   data.forEach(r => {
-    const op = s(r[0]);
-    if (!byOp[op]) byOp[op] = [];
-    byOp[op].push({ tipo: s(r[1]), nombre: s(r[2]), url: s(r[3]) });
+    if (!tiposOrden.includes(s(r[1]))) tiposOrden.push(s(r[1]));
+    opsSeen.add(s(r[0]));
+  });
+  const ops = [...opsSeen];
+
+  // Build lookup: tipo||op -> [{nombre,url},...] — supports multiple refs
+  const lookup = {};
+  data.forEach(r => {
+    const key = s(r[1]) + '||' + s(r[0]);
+    if (!lookup[key]) lookup[key] = [];
+    lookup[key].push({ nombre: s(r[2]), url: s(r[3]) });
   });
 
-  // ── Renderizar tarjetas ──
-  const grid = document.getElementById('docs-grid');
-  grid.innerHTML = '';
-  Object.entries(byOp).forEach(([op, docs]) => {
-    // Numerar docs repetidos del mismo tipo
-    const typeCount = {};
-    const iconsHtml = docs.map(d => {
-      const key = d.tipo.toLowerCase().trim();
-      typeCount[key] = (typeCount[key] || 0) + 1;
-      // Si hay más de uno del mismo tipo, añadir número al label
-      return { ...d, _idx: typeCount[key] };
-    });
-    // Segunda pasada para saber totales por tipo
-    const typeTotal = {};
-    iconsHtml.forEach(d => { typeTotal[d.tipo.toLowerCase().trim()] = d._idx; });
+  document.getElementById('docs-head').innerHTML =
+    '<tr><th>Tipo de Documento</th>' + ops.map(o => '<th>' + o + '</th>').join('') + '</tr>';
 
-    const iconsStr = iconsHtml.map(d => {
-      const total = typeTotal[d.tipo.toLowerCase().trim()];
-      const lbl = total > 1 ? getDtype(d.tipo).label + '<br>' + d._idx : null;
-      return makeIcon(d.tipo, d.nombre, d.url, lbl);
+  const linkIcon = '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+
+  const tbody = document.getElementById('t-docs');
+  tbody.innerHTML = '';
+  tiposOrden.forEach(tipo => {
+    const cells = ops.map(op => {
+      const entries = lookup[tipo + '||' + op];
+      if (!entries) return '<td style="text-align:center;color:var(--border)">—</td>';
+      const items = entries.map(e => {
+        const lbl = e.nombre.length > 26 ? e.nombre.slice(0,26) + '…' : e.nombre;
+        if (e.url) return '<a class="doc-link" href="' + e.url + '" target="_blank" title="' + e.nombre + '">' + linkIcon + ' ' + lbl + '</a>';
+        return '<span class="doc-nolink" title="' + e.nombre + '">' + lbl + '</span>';
+      }).join('<br style="margin:3px 0">');
+      return '<td style="padding:8px 12px;vertical-align:top">' + items + '</td>';
     }).join('');
-
-    const nombre = opNames[op] || '';
-    grid.innerHTML += `<div class="doc-card">
-      <div class="doc-card-head">
-        <div>
-          <div class="doc-op-id">${op}</div>
-          ${nombre ? `<div class="doc-op-name">${nombre}</div>` : ''}
-        </div>
-        <span class="doc-count-chip">${docs.length} doc${docs.length !== 1 ? 's' : ''}</span>
-      </div>
-      <div class="doc-icons-area">${iconsStr}</div>
-    </div>`;
+    tbody.innerHTML += '<tr><td style="padding:8px 14px;font-family:var(--mono);font-size:11px;font-weight:500;vertical-align:middle">' + tipo + '</td>' + cells + '</tr>';
   });
-
-  // ── Leyenda ──
-  const tiposVistos = [...new Set(data.map(r => s(r[1]).toLowerCase().trim()))];
-  const legend = document.getElementById('docs-legend');
-  legend.innerHTML = tiposVistos.map(t => {
-    const dt = getDtype(t);
-    return `<div class="docs-legend-item"><div class="docs-legend-dot" style="background:${dt.color}"></div>${dt.label}</div>`;
-  }).join('');
 }
 function renderChangelog(wb) {
   const ws = getSheet(wb, 'change') || getSheet(wb, 'log'); if (!ws) return;
   const rows = sheetToArr(ws);
   const hIdx = rows.findIndex(r => r.some(c => String(c||'').toLowerCase().includes('fecha')));
-  if (hIdx < 0) return;
-
-  // Detect column positions dynamically from the header row
-  const hdr = rows[hIdx].map(c => String(c||'').toLowerCase());
-  const iF = hdr.findIndex(c => c.includes('fecha'));
-  const iT = hdr.findIndex(c => c.includes('tab'));
-  const iO = hdr.findIndex(c => c.includes('oper') || c.includes('operaci'));
-  const iA = hdr.findIndex(c => c.includes('acci'));
-
-  // Filter rows that have content in tab or action column (not the header)
-  const anchorCol = iT >= 0 ? iT : iA >= 0 ? iA : 0;
-  const data = rows.slice(hIdx + 1).filter(r => r[anchorCol] != null && r[anchorCol] !== '');
-
+  // col B start: 0=Fecha,1=Tab,2=Operacion,3=Accion
+  const data = rows.slice(hIdx+1).filter(r => r[0] != null);
   document.getElementById('badge-cl').textContent = data.length;
   const list = document.getElementById('changelog-list');
   list.innerHTML = '';
   [...data].reverse().forEach(r => {
-    const fecha = iF >= 0 ? fmtDate(r[iF]) : '—';
-    const tab   = iT >= 0 ? s(r[iT]) : '';
-    const op    = iO >= 0 ? s(r[iO]) : '';
-    const act   = iA >= 0 ? s(r[iA]) : '';
     list.innerHTML += `<div class="log-row">
-      <span class="log-date">${fecha}</span>
-      <span class="log-tab">${tab}</span>
-      <span class="log-op">${op}</span>
-      <span style="font-size:12px">${act}</span>
+      <span class="log-date">${fmtDate(r[0])}</span>
+      <span class="log-tab">${s(r[1])}</span>
+      <span class="log-op">${s(r[2])}</span>
+      <span style="font-size:12px">${s(r[3])}</span>
     </div>`;
   });
 }
@@ -1528,11 +1357,6 @@ function renderResumen(wb, csvText) {
     else if (e.includes('en tiempo')) byOp[op].ent++;
     else if (e.includes('retrasado')) byOp[op].ret++;
   });
-  // ── s-ops: fuente autoritativa = operaciones con productos críticos ──
-  const opKeys = Object.keys(byOp);
-  document.getElementById('s-ops').textContent = opKeys.length;
-  document.getElementById('s-ops-sub').textContent = opKeys.join(', ');
-
   const tbody = document.getElementById('t-resumen');
   tbody.innerHTML = '';
   Object.entries(byOp).forEach(([op,v]) => {
