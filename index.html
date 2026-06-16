@@ -140,7 +140,18 @@
   .res-ind-val{font-family:var(--mono);font-size:11px;color:var(--muted);}
   .res-ind-val span{color:var(--text);}
   .res-prods{margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;}
-  .res-prod-chip{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.18);color:var(--accent);}
+  .res-prod-chip{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.18);color:var(--accent);cursor:pointer;transition:opacity .15s;}
+  .res-prod-chip:hover{opacity:.75;}
+  #prod-popup-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;align-items:center;justify-content:center;}
+  #prod-popup-overlay.open{display:flex;}
+  #prod-popup-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 28px;min-width:280px;max-width:420px;position:relative;box-shadow:0 8px 32px rgba(0,0,0,.5);}
+  #prod-popup-title{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;}
+  #prod-popup-estado{margin-bottom:14px;}
+  .prod-popup-field{margin-bottom:12px;}
+  .prod-popup-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px;}
+  .prod-popup-value{font-size:12px;color:var(--text);line-height:1.5;}
+  #prod-popup-close{position:absolute;top:14px;right:16px;background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1;padding:0;}
+  #prod-popup-close:hover{color:var(--text);}
   .pmr-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
   .pmr-card-head{padding:14px 18px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;}
   .pmr-prog{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--accent);}
@@ -1243,9 +1254,40 @@ function probPill(prob) {
   return '<span class="pill pill-blue" style="font-size:10px;padding:2px 8px;">' + t + '</span>';
 }
 
+// ── Helpers para chips de productos en Resultados ──
+function buildProdInfoMap() {
+  const map = {};
+  (_prodData || []).forEach(r => {
+    map[s(r[0]) + '|' + s(r[1])] = { estado: s(r[2]), adquisicion: s(r[3]), riesgos: s(r[4]) };
+  });
+  return map;
+}
+
+function chipStyle(estado) {
+  const e = String(estado).toLowerCase();
+  if (e.includes('logrado'))   return 'background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.25);color:#10b981;';
+  if (e.includes('en tiempo')) return 'background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.25);color:#f59e0b;';
+  if (e.includes('retrasado')) return 'background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.25);color:#ef4444;';
+  return ''; // Pausado y cualquier otro → cyan por defecto
+}
+
+function showProdPopup(op, prodName) {
+  const info = (window._prodInfoMap || {})[op + '|' + prodName] || {};
+  document.getElementById('prod-popup-title').textContent = prodName;
+  document.getElementById('prod-popup-estado').innerHTML = info.estado ? pill(info.estado) : '';
+  document.getElementById('prod-popup-adq').textContent = info.adquisicion || '—';
+  document.getElementById('prod-popup-riesgos').textContent = info.riesgos || '—';
+  document.getElementById('prod-popup-overlay').classList.add('open');
+}
+
+function closeProdPopup() {
+  document.getElementById('prod-popup-overlay').classList.remove('open');
+}
+
 function renderResGrid() {
   const grid = document.getElementById('res-grid');
   grid.innerHTML = '';
+  window._prodInfoMap = buildProdInfoMap();
 
   // Filter by active op
   const data = _resActiveOp
@@ -1282,7 +1324,7 @@ function renderResGrid() {
         const prob    = s(r[7]);
         const prods   = _resProdMap[op + '|' + indId] || [];
         const prodsHtml = prods.length
-          ? `<div class="res-prods">${prods.map(p => `<span class="res-prod-chip">${p}</span>`).join('')}</div>`
+          ? `<div class="res-prods">${prods.map(p => { const info=(window._prodInfoMap||{})[op+'|'+p]||{}; const st=chipStyle(info.estado||''); const safeOp=op.replace(/'/g,"\\'"); const safeProd=p.replace(/'/g,"\\'"); return `<span class="res-prod-chip"${st?` style="${st}"`:''}  onclick="showProdPopup('${safeOp}','${safeProd}')">${p}</span>`; }).join('')}</div>`
           : '';
         return `<div class="res-ind-row">
           <span class="res-ind-id">${indId}</span>
@@ -1638,5 +1680,20 @@ function renderResumen(wb, csvText) {
   }
 }
 </script>
+<div id="prod-popup-overlay" onclick="if(event.target===this)closeProdPopup()">
+  <div id="prod-popup-card">
+    <button id="prod-popup-close" onclick="closeProdPopup()">&#x2715;</button>
+    <div id="prod-popup-title"></div>
+    <div id="prod-popup-estado"></div>
+    <div class="prod-popup-field">
+      <div class="prod-popup-label">Adquisición Crítica</div>
+      <div class="prod-popup-value" id="prod-popup-adq"></div>
+    </div>
+    <div class="prod-popup-field">
+      <div class="prod-popup-label">Riesgos / Comentarios</div>
+      <div class="prod-popup-value" id="prod-popup-riesgos"></div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
