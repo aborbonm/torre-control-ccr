@@ -788,6 +788,7 @@ function renderAll(wb, csvText) {
     const fv = rows[1] && rows[1][0]; // col B start
     if (fv) document.getElementById('fecha-chip').textContent = 'Rev: ' + fmtDate(fv);
   }
+  buildProdAdqMap(wb);
   renderResultados(wb);
   renderPMR(wb);
   renderClausulasV(wb, csvText || '');
@@ -1022,31 +1023,40 @@ let _riesgoByProc = {};
 // "op|idProceso" -> {nombre, monto, estado, metodo}, tomado del raw data de cada operación (ver loadRawDataMap)
 let _rawProcMap = {};
 
+// Parsea productos_adquisiciones y llena _prodAdqMap/_riesgoByProc. Se llama una sola vez al
+// inicio de renderAll (no dentro de renderProductos) para que Resultados y Productos Críticos
+// vean el mismo estado ya poblado sin depender de su orden de ejecución.
+function buildProdAdqMap(wb) {
+  _prodAdqMap = {};
+  _riesgoByProc = {};
+  const wsAdq = getSheet(wb, 'productos_adquisiciones');
+  if (!wsAdq) return;
+  const rowsAdq = sheetToArr(wsAdq);
+  const hAdq = rowsAdq.findIndex(r => s(r[0]) === 'Operacion');
+  if (hAdq < 0) return;
+  rowsAdq.slice(hAdq+1).filter(r => r[0] != null).forEach(r => {
+    const op = s(r[0]), prod = s(r[1]), idProc = s(r[2]), critica = s(r[3]).toLowerCase(), riesgo = s(r[4]);
+    if (critica !== 'sí' && critica !== 'si') return;
+    const key = op + '|' + prod;
+    if (!_prodAdqMap[key]) _prodAdqMap[key] = [];
+    _prodAdqMap[key].push({ idProceso: idProc, riesgo });
+    if (riesgo) _riesgoByProc[op + '|' + idProc] = riesgo;
+  });
+}
+
+// "idProceso: riesgo" concatenado por " · " para las entradas de adqEntries que tengan riesgo.
+// '—' si ninguna tiene. Compartido entre la tabla de Productos Críticos y el popup de Resultados.
+function combinedRiesgoText(adqEntries) {
+  const conRiesgo = (adqEntries || []).filter(e => e.riesgo);
+  return conRiesgo.length ? conRiesgo.map(e => `${e.idProceso}: ${e.riesgo}`).join(' · ') : '—';
+}
+
 function renderProductos(wb) {
   const ws = getSheet(wb, 'producto'); if (!ws) return;
   const rows = sheetToArr(ws);
   const hIdx = rows.findIndex(r => r.some(c => String(c||'').toLowerCase().includes('operacion')));
   // col B start: 0=Operacion,1=Producto,2=Estado,3=Adquisicion,4=Riesgos
   _prodData = rows.slice(hIdx+1).filter(r => r[0] != null);
-
-  // ── Adquisiciones críticas por producto (prioridad sobre columnas 3/4 de arriba) ──
-  _prodAdqMap = {};
-  _riesgoByProc = {};
-  const wsAdq = getSheet(wb, 'productos_adquisiciones');
-  if (wsAdq) {
-    const rowsAdq = sheetToArr(wsAdq);
-    const hAdq = rowsAdq.findIndex(r => s(r[0]) === 'Operacion');
-    if (hAdq >= 0) {
-      rowsAdq.slice(hAdq+1).filter(r => r[0] != null).forEach(r => {
-        const op = s(r[0]), prod = s(r[1]), idProc = s(r[2]), critica = s(r[3]).toLowerCase(), riesgo = s(r[4]);
-        if (critica !== 'sí' && critica !== 'si') return;
-        const key = op + '|' + prod;
-        if (!_prodAdqMap[key]) _prodAdqMap[key] = [];
-        _prodAdqMap[key].push({ idProceso: idProc, riesgo });
-        if (riesgo) _riesgoByProc[op + '|' + idProc] = riesgo;
-      });
-    }
-  }
 
   // Conteos globales
   let log=0, ent=0, ret=0;
@@ -1119,9 +1129,8 @@ function applyProdFiltro() {
         return `<span class="res-prod-chip" onclick="showAdqPopup('${safeOp}','${safeId}')">${nombre}</span>`;
       }).join('');
       adqHtml = `<div class="prod-adq-chips">${chips}</div>`;
-      const conRiesgo = adqEntries.filter(e => e.riesgo);
-      riesgoActivo = conRiesgo.length > 0;
-      riesgoHtml = riesgoActivo ? conRiesgo.map(e => `${e.idProceso}: ${e.riesgo}`).join(' · ') : '—';
+      riesgoHtml = combinedRiesgoText(adqEntries);
+      riesgoActivo = riesgoHtml !== '—';
     } else {
       // ── Fallback: texto libre de la hoja productos criticos (operaciones sin raw data) ──
       const riesgo = s(r[4]);
@@ -1437,8 +1446,26 @@ function showProdPopup(op, prodName) {
   const info = (window._prodInfoMap || {})[op + '|' + prodName] || {};
   document.getElementById('prod-popup-title').textContent = prodName;
   document.getElementById('prod-popup-estado').innerHTML = info.estado ? pill(info.estado) : '';
-  document.getElementById('prod-popup-adq').textContent = info.adquisicion || '—';
-  document.getElementById('prod-popup-riesgos').textContent = info.riesgos || '—';
+
+  const adqEntries = _prodAdqMap[op + '|' + prodName];
+  const adqEl = document.getElementById('prod-popup-adq');
+  if (adqEntries && adqEntries.length) {
+    // ── Prioridad: adquisiciones críticas desde productos_adquisiciones + raw data ──
+    const chips = adqEntries.map(e => {
+      const adqInfo = _rawProcMap[op + '|' + e.idProceso] || {};
+      const nombre = adqInfo.nombre || e.idProceso;
+      const safeOp = op.replace(/'/g, "\\'");
+      const safeId = e.idProceso.replace(/'/g, "\\'");
+      return `<span class="res-prod-chip" onclick="closeProdPopup();showAdqPopup('${safeOp}','${safeId}')">${nombre}</span>`;
+    }).join('');
+    adqEl.innerHTML = `<div class="prod-adq-chips">${chips}</div>`;
+    document.getElementById('prod-popup-riesgos').textContent = combinedRiesgoText(adqEntries);
+  } else {
+    // ── Fallback: texto libre de la hoja productos criticos (operaciones sin raw data) ──
+    adqEl.textContent = info.adquisicion || '—';
+    document.getElementById('prod-popup-riesgos').textContent = info.riesgos || '—';
+  }
+
   document.getElementById('prod-popup-overlay').classList.add('open');
 }
 
