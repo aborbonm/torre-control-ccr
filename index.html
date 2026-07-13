@@ -469,15 +469,56 @@ async function clearCache() {
   document.getElementById('clear-cache-btn').style.display = 'none';
 }
 
-function showCacheChip(ts) {
-  const chip = document.getElementById('cache-chip');
-  const d = new Date(ts);
-  const lbl = d.toLocaleDateString('es-CR', {day:'2-digit', month:'short', year:'numeric'})
-            + ' ' + d.toLocaleTimeString('es-CR', {hour:'2-digit', minute:'2-digit'});
-  chip.textContent = 'Datos: ' + lbl;
-  chip.style.display = 'inline-flex';
-  chip.title = 'Ultima actualizacion: ' + lbl + ' | Haz clic en Actualizar para refrescar.';
+function showCacheChip() {
   document.getElementById('clear-cache-btn').style.display = 'inline-flex';
+}
+
+// ── Fecha de última modificación de un archivo, vía API de GitHub (commits?path=) ──
+const GITHUB_REPO = 'aborbonm/torre-control-ccr';
+
+async function fetchLastCommitDate(path) {
+  try {
+    const url = 'https://api.github.com/repos/' + GITHUB_REPO + '/commits?path=' + encodeURIComponent(path) + '&sha=main&per_page=1';
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.length) return null;
+    return (data[0].commit && (data[0].commit.committer?.date || data[0].commit.author?.date)) || null;
+  } catch (e) {
+    console.warn('fetchLastCommitDate:', path, e);
+    return null;
+  }
+}
+
+// "Rev:" = último commit de index.html, "Datos:" = último commit de torre_de_control_CCR.xlsx.
+// useCacheOnly=true evita ir a red (camino rápido de caché); si el fetch falla, se usa el
+// último valor cacheado en IndexedDB para no dejar el chip roto/vacío.
+const FILE_DATE_TARGETS = [
+  { elId: 'fecha-chip', label: 'Rev',   path: 'index.html',                 cacheKey: 'lastmod:index.html' },
+  { elId: 'cache-chip', label: 'Datos', path: 'torre_de_control_CCR.xlsx',  cacheKey: 'lastmod:torre_de_control_CCR.xlsx' },
+];
+
+async function updateFileDateChips(useCacheOnly) {
+  for (const t of FILE_DATE_TARGETS) {
+    let iso = null;
+    if (!useCacheOnly) {
+      iso = await fetchLastCommitDate(t.path);
+      if (iso) await saveToCacheKey(t.cacheKey, iso, Date.now());
+    }
+    if (!iso) {
+      const cached = await getFromCacheKey(t.cacheKey);
+      if (cached && cached.data) iso = cached.data;
+    }
+    if (!iso) continue;
+    const el = document.getElementById(t.elId);
+    if (!el) continue;
+    const lbl = fmtDate(new Date(iso));
+    el.textContent = t.label + ': ' + lbl;
+    if (t.elId === 'cache-chip') {
+      el.style.display = 'inline-flex';
+      el.title = 'Última modificación de ' + t.path + ': ' + lbl + ' | Haz clic en Actualizar para refrescar.';
+    }
+  }
 }
 
 async function fetchExcel(forceRefresh) {
@@ -493,7 +534,8 @@ async function fetchExcel(forceRefresh) {
         _rawProcMap = await loadRawDataMap(wb, true);
         renderAll(wb, csvText);
         document.getElementById('file-picker').classList.add('hidden');
-        showCacheChip(cached.ts);
+        await updateFileDateChips(true);
+        showCacheChip();
         document.getElementById('loader').classList.add('hidden');
         // Fetch fresh in background
         fetchAndUpdate();
@@ -510,6 +552,9 @@ async function fetchExcel(forceRefresh) {
 }
 
 async function fetchAndUpdate() {
+  // Dispara en paralelo, sin bloquear la carga principal de datos — si falla o tarda,
+  // updateFileDateChips ya se apoya en el valor cacheado.
+  updateFileDateChips(false);
   try {
     // Fetch Excel — required, failure shows error screen
     const excelRes = await fetch(EXCEL_URL + '?t=' + Date.now());
@@ -541,7 +586,7 @@ async function fetchAndUpdate() {
     renderAll(wb, csvText);
     document.getElementById('file-picker').classList.add('hidden');
     document.getElementById('loader').classList.add('hidden');
-    showCacheChip(ts);
+    showCacheChip();
     await saveToCache(bytes, ts);
   } catch(err) {
     console.error('Error cargando Excel:', err);
@@ -782,12 +827,6 @@ function buildComentariosMap(wb) {
 
 // ── Render all ──
 function renderAll(wb, csvText) {
-  const wsEq = getSheet(wb, 'equipo');
-  if (wsEq) {
-    const rows = sheetToArr(wsEq);
-    const fv = rows[1] && rows[1][0]; // col B start
-    if (fv) document.getElementById('fecha-chip').textContent = 'Rev: ' + fmtDate(fv);
-  }
   buildProdAdqMap(wb);
   renderResultados(wb);
   renderPMR(wb);
