@@ -170,6 +170,17 @@
   .pmr-indicator{display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;min-width:72px;}
   .pmr-ind-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;color:var(--muted);letter-spacing:.05em;text-align:center;}
   .pmr-ind-value{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text);}
+  .pmr-hist-badge{font-family:var(--mono);font-size:10px;color:var(--accent);background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);border-radius:100px;padding:2px 8px;white-space:nowrap;}
+  #pmr-history-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;align-items:center;justify-content:center;}
+  #pmr-history-overlay.open{display:flex;}
+  #pmr-history-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 28px;min-width:320px;max-width:720px;max-height:80vh;overflow-y:auto;position:relative;box-shadow:0 8px 32px rgba(0,0,0,.5);}
+  #pmr-history-title{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px;}
+  #pmr-history-subtitle{font-size:11px;color:var(--muted);margin-bottom:14px;}
+  #pmr-history-close{position:absolute;top:14px;right:16px;background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1;padding:0;}
+  #pmr-history-close:hover{color:var(--text);}
+  #pmr-history-table{width:100%;border-collapse:collapse;font-size:11px;}
+  #pmr-history-table th{text-align:left;font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap;}
+  #pmr-history-table td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text);white-space:nowrap;}
   /* ── Tab Documentos — tarjetas ── */
   .doc-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:border-color .2s;}
   .doc-card:hover{border-color:rgba(0,212,255,.3);}
@@ -421,6 +432,7 @@ function showTab(id, el) {
 const DB_NAME = 'TorreControlCCR', DB_STORE = 'excel', DB_KEY = 'file';
 const EXCEL_URL = 'https://raw.githubusercontent.com/aborbonm/torre-control-ccr/main/torre_de_control_CCR.xlsx';
 const CSV_URL   = 'https://raw.githubusercontent.com/aborbonm/torre-control-ccr/main/Status%20Date%20Clause%20Operation.csv';
+const PMR_HISTORY_URL = 'https://raw.githubusercontent.com/aborbonm/torre-control-ccr/main/PMR_Historico.xlsx';
 
 function openDB() {
   return new Promise((res, rej) => {
@@ -532,6 +544,7 @@ async function fetchExcel(forceRefresh) {
         const cachedCsv = await getFromCacheKey('csv');
         const csvText = cachedCsv ? cachedCsv.data : '';
         _rawProcMap = await loadRawDataMap(wb, true);
+        _pmrHistoryMap = await loadPmrHistoryMap(true);
         renderAll(wb, csvText);
         document.getElementById('file-picker').classList.add('hidden');
         await updateFileDateChips(true);
@@ -583,6 +596,7 @@ async function fetchAndUpdate() {
     }
 
     _rawProcMap = await loadRawDataMap(wb, false);
+    _pmrHistoryMap = await loadPmrHistoryMap(false);
     renderAll(wb, csvText);
     document.getElementById('file-picker').classList.add('hidden');
     document.getElementById('loader').classList.add('hidden');
@@ -722,6 +736,71 @@ async function loadRawDataMap(wb, useCacheOnly) {
     } catch (e) {
       console.warn('Error parseando raw data de ' + op + ':', e);
     }
+  }
+  return map;
+}
+
+// ── Histórico PMR (PMR_Historico.xlsx) ──
+// Un solo archivo, una hoja por operación (nombre de hoja = código de operación).
+// A diferencia del raw data de adquisiciones, no depende de ninguna otra hoja del
+// Excel principal — se intenta cargar siempre, y si falla el tab PMR sigue
+// funcionando igual que hoy (solo sin histórico clicable).
+let _pmrHistoryMap = {}; // codigo -> [{ciclo, estadoPmi, cpi, spi, cpiA, spiA, disb, t3, indSintetico, clasifAuto, clasifValidada, ordenCiclo}]
+const PMR_HISTORY_CACHE_KEY = 'pmr-historico';
+
+function ordenCicloFor(ciclo) {
+  const m = String(ciclo || '').match(/(Primer|Segundo)\s+per[ií]odo[^\d]*(\d{4})/i);
+  if (!m) return 0;
+  const sem = /segundo/i.test(m[1]) ? 2 : 1;
+  return parseInt(m[2], 10) * 10 + sem;
+}
+
+function parsePmrHistorySheet(ws) {
+  const rows = sheetToArr(ws);
+  const hIdx = rows.findIndex(r => s(r[0]) === 'Ciclo');
+  if (hIdx < 0) return [];
+  return rows.slice(hIdx + 1).filter(r => r[0] != null).map(r => ({
+    ciclo: s(r[0]),
+    estadoPmi: s(r[1]),
+    cpi: r[2], spi: r[3], cpiA: r[4], spiA: r[5], disb: r[6], t3: r[7],
+    indSintetico: r[8],
+    clasifAuto: s(r[9]),
+    clasifValidada: s(r[10]),
+    ordenCiclo: ordenCicloFor(r[0]),
+  })).sort((a, b) => b.ordenCiclo - a.ordenCiclo);
+}
+
+async function loadPmrHistoryMap(useCacheOnly) {
+  const map = {};
+  let bytes = null;
+
+  if (!useCacheOnly) {
+    try {
+      const res = await fetch(PMR_HISTORY_URL + '?t=' + Date.now());
+      if (res.ok) {
+        bytes = new Uint8Array(await res.arrayBuffer());
+        await saveToCacheKey(PMR_HISTORY_CACHE_KEY, bytes, Date.now());
+      } else {
+        console.warn('PMR_Historico.xlsx no disponible (HTTP ' + res.status + ')');
+      }
+    } catch (e) {
+      console.warn('Error cargando PMR_Historico.xlsx:', e);
+    }
+  }
+  if (!bytes) {
+    const cached = await getFromCacheKey(PMR_HISTORY_CACHE_KEY);
+    if (cached && cached.data) bytes = cached.data;
+  }
+  if (!bytes) return map;
+
+  try {
+    const pwb = XLSX.read(bytes, { type: 'array', cellDates: true });
+    pwb.SheetNames.forEach(codigo => {
+      const cycles = parsePmrHistorySheet(pwb.Sheets[codigo]);
+      if (cycles.length) map[codigo] = cycles;
+    });
+  } catch (e) {
+    console.warn('Error parseando PMR_Historico.xlsx:', e);
   }
   return map;
 }
@@ -1628,6 +1707,20 @@ function renderResGrid() {
   });
 }
 
+function pmrPill(cal, small) {
+  const t = String(cal||'').trim().toUpperCase();
+  const cls   = t.includes('SATISFACTORIO') ? 'pill-green'
+              : t.includes('ALERTA')        ? 'pill-yellow'
+              : t.includes('PROBLEMA')      ? 'pill-red'
+              : 'pill-blue';
+  const label = t.includes('SATISFACTORIO') ? 'Satisfactorio'
+              : t.includes('ALERTA')        ? 'Alerta'
+              : t.includes('PROBLEMA')      ? 'Problema'
+              : (cal || 'Sin calificación');
+  const sz = small ? 'font-size:10px;padding:2px 7px;' : '';
+  return `<span class="pill ${cls}" style="${sz}">${label}</span>`;
+}
+
 function renderPMR(wb) {
   const ws = getSheet(wb, 'PMR') || getSheet(wb, 'pmr'); if (!ws) return;
   const rows = sheetToArr(ws);
@@ -1693,20 +1786,6 @@ function renderPMR(wb) {
   document.getElementById('pmr-ale').textContent = ale;
   document.getElementById('pmr-pro').textContent = pro;
   document.getElementById('pmr-sin').textContent = sin;
-
-  function pmrPill(cal, small) {
-    const t = String(cal||'').trim().toUpperCase();
-    const cls   = t.includes('SATISFACTORIO') ? 'pill-green'
-                : t.includes('ALERTA')        ? 'pill-yellow'
-                : t.includes('PROBLEMA')      ? 'pill-red'
-                : 'pill-blue';
-    const label = t.includes('SATISFACTORIO') ? 'Satisfactorio'
-                : t.includes('ALERTA')        ? 'Alerta'
-                : t.includes('PROBLEMA')      ? 'Problema'
-                : (cal || 'Sin calificación');
-    const sz = small ? 'font-size:10px;padding:2px 7px;' : '';
-    return `<span class="pill ${cls}" style="${sz}">${label}</span>`;
-  }
 
   function fmtInd(v) {
     if (v == null) return 'N/A';
@@ -1796,13 +1875,20 @@ function renderPMR(wb) {
                     : calTop.includes('SATISFACTORIO')  ? 'rgba(16,185,129,.25)'
                     : 'var(--border)';
 
-    grid.innerHTML += `<div class="pmr-card" style="border-color:${borderClr}">
+    const tieneHistorico = (_pmrHistoryMap[prog] || []).length > 0;
+    const safeProg = prog.replace(/'/g, "\\'");
+    const clickAttrs = tieneHistorico ? ` style="border-color:${borderClr};cursor:pointer" onclick="showPmrHistoryPopup('${safeProg}')"` : ` style="border-color:${borderClr}"`;
+
+    grid.innerHTML += `<div class="pmr-card"${clickAttrs}>
       <div class="pmr-card-head">
         <div>
           <span class="pmr-prog">${prog}</span>
           ${nombre ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;font-family:var(--mono);line-height:1.4">${nombre}</div>` : ''}
         </div>
-        ${pmrPill(calShow)}
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${tieneHistorico ? `<span class="pmr-hist-badge" title="Ver histórico de ciclos">&#x1F551; Histórico</span>` : ''}
+          ${pmrPill(calShow)}
+        </div>
       </div>
       <div class="pmr-body">
         ${calHtml}
@@ -1812,6 +1898,42 @@ function renderPMR(wb) {
       </div>
     </div>`;
   });
+}
+
+// ── Popup de histórico PMR (tabla de ciclos por operación) ──
+function fmtPmrNum(v) {
+  if (v == null || v === '') return '—';
+  const n = parseFloat(String(v).replace(',', '.'));
+  return isNaN(n) ? String(v) : n.toFixed(2);
+}
+
+function showPmrHistoryPopup(codigo) {
+  const cycles = _pmrHistoryMap[codigo] || [];
+  if (!cycles.length) return;
+  document.getElementById('pmr-history-title').textContent = codigo;
+  document.getElementById('pmr-history-subtitle').textContent = cycles.length + ' ciclo' + (cycles.length !== 1 ? 's' : '') + ' registrado' + (cycles.length !== 1 ? 's' : '');
+
+  const rowsHtml = cycles.map(c => `
+    <tr>
+      <td>${c.ciclo || '—'}</td>
+      <td>${c.estadoPmi || '—'}</td>
+      <td>${fmtPmrNum(c.cpi)}</td>
+      <td>${fmtPmrNum(c.spi)}</td>
+      <td>${fmtPmrNum(c.cpiA)}</td>
+      <td>${fmtPmrNum(c.spiA)}</td>
+      <td>${fmtPmrNum(c.disb)}</td>
+      <td>${fmtPmrNum(c.t3)}</td>
+      <td>${fmtPmrNum(c.indSintetico)}</td>
+      <td>${c.clasifAuto ? pmrPill(c.clasifAuto, true) : '—'}</td>
+      <td>${c.clasifValidada ? pmrPill(c.clasifValidada, true) : '—'}</td>
+    </tr>`).join('');
+
+  document.getElementById('pmr-history-table-body').innerHTML = rowsHtml;
+  document.getElementById('pmr-history-overlay').classList.add('open');
+}
+
+function closePmrHistoryPopup() {
+  document.getElementById('pmr-history-overlay').classList.remove('open');
 }
 
 function renderResumen(wb, csvText) {
@@ -1975,6 +2097,24 @@ function renderResumen(wb, csvText) {
     <div class="prod-popup-field">
       <div class="prod-popup-label">Riesgos / Comentarios</div>
       <div class="prod-popup-value" id="adq-popup-riesgo"></div>
+    </div>
+  </div>
+</div>
+<div id="pmr-history-overlay" onclick="if(event.target===this)closePmrHistoryPopup()">
+  <div id="pmr-history-card">
+    <button id="pmr-history-close" onclick="closePmrHistoryPopup()">&#x2715;</button>
+    <div id="pmr-history-title"></div>
+    <div id="pmr-history-subtitle"></div>
+    <div style="overflow-x:auto;">
+      <table id="pmr-history-table">
+        <thead>
+          <tr>
+            <th>Ciclo</th><th>Estado del PMI</th><th>CPI</th><th>SPI</th><th>CPI(a)</th><th>SPI(a)</th>
+            <th>Disb</th><th>T3</th><th>Ind. Sintético</th><th>Clasif. Auto</th><th>Clasif. Validada</th>
+          </tr>
+        </thead>
+        <tbody id="pmr-history-table-body"></tbody>
+      </table>
     </div>
   </div>
 </div>
