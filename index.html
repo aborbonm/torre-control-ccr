@@ -290,10 +290,11 @@
   </div>
 
   <div id="productos" class="panel">
-    <div class="stat-row" style="grid-template-columns:repeat(3,1fr)">
-      <div class="stat-card green"><div class="stat-label">Logrados</div><div class="stat-value" id="p-log">—</div></div>
-      <div class="stat-card yellow"><div class="stat-label">En tiempo</div><div class="stat-value" id="p-ent">—</div></div>
-      <div class="stat-card red"><div class="stat-label">Retrasados</div><div class="stat-value" id="p-ret">—</div></div>
+    <div class="stat-row" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat-card green"><div class="stat-label">Logrados</div><div class="stat-value" id="p-log">—</div><div class="stat-sub" id="p-log-pct"></div></div>
+      <div class="stat-card yellow"><div class="stat-label">En tiempo</div><div class="stat-value" id="p-ent">—</div><div class="stat-sub" id="p-ent-pct"></div></div>
+      <div class="stat-card red"><div class="stat-label">Retrasados</div><div class="stat-value" id="p-ret">—</div><div class="stat-sub" id="p-ret-pct"></div></div>
+      <div class="stat-card blue"><div class="stat-label">Pausados</div><div class="stat-value" id="p-pau">—</div><div class="stat-sub" id="p-pau-pct"></div></div>
     </div>
 
     <!-- Filtro operación -->
@@ -1178,16 +1179,24 @@ function renderProductos(wb) {
   _prodData = rows.slice(hIdx+1).filter(r => r[0] != null);
 
   // Conteos globales
-  let log=0, ent=0, ret=0;
+  let log=0, ent=0, ret=0, pau=0;
   _prodData.forEach(r => {
     const e = s(r[2]).toLowerCase();
     if (e.includes('logrado')) log++;
     else if (e.includes('en tiempo')) ent++;
     else if (e.includes('retrasado')) ret++;
+    else if (e.includes('pausado')) pau++;
   });
+  const total = _prodData.length;
+  const pct = n => total ? `${(n / total * 100).toFixed(1)}% del total` : '';
   document.getElementById('p-log').textContent = log;
   document.getElementById('p-ent').textContent = ent;
   document.getElementById('p-ret').textContent = ret;
+  document.getElementById('p-pau').textContent = pau;
+  document.getElementById('p-log-pct').textContent = pct(log);
+  document.getElementById('p-ent-pct').textContent = pct(ent);
+  document.getElementById('p-ret-pct').textContent = pct(ret);
+  document.getElementById('p-pau-pct').textContent = pct(pau);
   document.getElementById('s-ret').textContent = ret;
   document.getElementById('s-ret-sub').textContent = `De ${_prodData.length} productos críticos`;
 
