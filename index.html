@@ -330,9 +330,9 @@
 
     <!-- KPIs globales -->
     <div class="stat-row" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px;">
-      <div class="stat-card green"><div class="stat-label">Alta</div><div class="stat-value" id="res-alta">—</div><div class="stat-sub">indicadores</div></div>
-      <div class="stat-card yellow"><div class="stat-label">Media</div><div class="stat-value" id="res-media">—</div><div class="stat-sub">indicadores</div></div>
-      <div class="stat-card red"><div class="stat-label">Baja</div><div class="stat-value" id="res-baja">—</div><div class="stat-sub">indicadores</div></div>
+      <div class="stat-card green"><div class="stat-label">Alta</div><div class="stat-value" id="res-alta">—</div><div class="stat-sub" id="res-alta-pct"></div></div>
+      <div class="stat-card yellow"><div class="stat-label">Media</div><div class="stat-value" id="res-media">—</div><div class="stat-sub" id="res-media-pct"></div></div>
+      <div class="stat-card red"><div class="stat-label">Baja</div><div class="stat-value" id="res-baja">—</div><div class="stat-sub" id="res-baja-pct"></div></div>
     </div>
 
     <!-- Filtro por operación -->
@@ -1506,9 +1506,14 @@ function renderResultados(wb) {
     else if (p === 'Media') media++;
     else if (p === 'Baja') baja++;
   });
+  const totalRes = _resData.length;
+  const pctRes = n => totalRes ? `${(n / totalRes * 100).toFixed(1)}% del total` : '';
   document.getElementById('res-alta').textContent = alta;
   document.getElementById('res-media').textContent = media;
   document.getElementById('res-baja').textContent = baja;
+  document.getElementById('res-alta-pct').textContent = pctRes(alta);
+  document.getElementById('res-media-pct').textContent = pctRes(media);
+  document.getElementById('res-baja-pct').textContent = pctRes(baja);
 
   // ── Build op filter buttons ──
   const ops = [...new Set(_resData.map(r => s(r[0])).filter(Boolean))];
