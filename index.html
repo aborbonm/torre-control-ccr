@@ -267,11 +267,11 @@
     <div class="stat-row">
       <div class="stat-card red"><div class="stat-label">Cláusulas vencidas</div><div class="stat-value" id="s-cv">—</div><div class="stat-sub">Requieren atención inmediata</div></div>
       <div class="stat-card yellow"><div class="stat-label">Vencen en 180 días</div><div class="stat-value" id="s-180">—</div><div class="stat-sub">En seguimiento</div></div>
-      <div class="stat-card red"><div class="stat-label">Productos críticos retrasados</div><div class="stat-value" id="s-ret">—</div><div class="stat-sub" id="s-ret-sub">Cargando…</div></div>
+      <div class="stat-card yellow"><div class="stat-label">Productos críticos retrasados</div><div class="stat-value" id="s-ret">—</div><div class="stat-sub" id="s-ret-sub">Cargando…</div></div>
       <div class="stat-card blue"><div class="stat-label">Operaciones activas</div><div class="stat-value" id="s-ops">—</div><div class="stat-sub" id="s-ops-sub">Cargando…</div></div>
     </div>
     <div class="section-head"><h2>Estado de productos críticos por operación</h2></div>
-    <div class="table-wrap"><table><thead><tr><th>Operación</th><th>Logrado</th><th>En tiempo</th><th>Retrasado</th><th>Total</th></tr></thead><tbody id="t-resumen"></tbody></table></div>
+    <div class="table-wrap"><table><thead><tr><th>Operación</th><th>Logrado</th><th>En tiempo</th><th>Retrasado</th><th>Pausado</th><th>Total</th></tr></thead><tbody id="t-resumen"></tbody></table></div>
     <div class="section-head"><h2>Próximos vencimientos de cláusulas (≤30 días)</h2></div>
     <div class="table-wrap"><table><thead><tr><th>Urgencia</th><th>Contrato</th><th>Descripción</th><th>Vencimiento</th><th>Días</th></tr></thead><tbody id="t-alertas"></tbody></table></div>
   </div>
@@ -291,10 +291,10 @@
 
   <div id="productos" class="panel">
     <div class="stat-row" style="grid-template-columns:repeat(4,1fr)">
-      <div class="stat-card green"><div class="stat-label">Logrados</div><div class="stat-value" id="p-log">—</div><div class="stat-sub" id="p-log-pct"></div></div>
-      <div class="stat-card yellow"><div class="stat-label">En tiempo</div><div class="stat-value" id="p-ent">—</div><div class="stat-sub" id="p-ent-pct"></div></div>
-      <div class="stat-card red"><div class="stat-label">Retrasados</div><div class="stat-value" id="p-ret">—</div><div class="stat-sub" id="p-ret-pct"></div></div>
-      <div class="stat-card blue"><div class="stat-label">Pausados</div><div class="stat-value" id="p-pau">—</div><div class="stat-sub" id="p-pau-pct"></div></div>
+      <div class="stat-card blue"><div class="stat-label">Logrados</div><div class="stat-value" id="p-log">—</div><div class="stat-sub" id="p-log-pct"></div></div>
+      <div class="stat-card green"><div class="stat-label">En tiempo</div><div class="stat-value" id="p-ent">—</div><div class="stat-sub" id="p-ent-pct"></div></div>
+      <div class="stat-card yellow"><div class="stat-label">Retrasados</div><div class="stat-value" id="p-ret">—</div><div class="stat-sub" id="p-ret-pct"></div></div>
+      <div class="stat-card red"><div class="stat-label">Pausados</div><div class="stat-value" id="p-pau">—</div><div class="stat-sub" id="p-pau-pct"></div></div>
     </div>
 
     <!-- Filtro operación -->
@@ -1962,11 +1962,12 @@ function renderResumen(wb, csvText) {
   const byOp = {};
   data.forEach(r => {
     const op = s(r[0]); if (!op) return;
-    if (!byOp[op]) byOp[op] = {log:0,ent:0,ret:0};
+    if (!byOp[op]) byOp[op] = {log:0,ent:0,ret:0,pau:0};
     const e = s(r[2]).toLowerCase();
     if (e.includes('logrado')) byOp[op].log++;
     else if (e.includes('en tiempo')) byOp[op].ent++;
     else if (e.includes('retrasado')) byOp[op].ret++;
+    else if (e.includes('pausado')) byOp[op].pau++;
   });
   // ── s-ops: fuente autoritativa = operaciones con productos críticos ──
   const opKeys = Object.keys(byOp);
@@ -1976,12 +1977,13 @@ function renderResumen(wb, csvText) {
   const tbody = document.getElementById('t-resumen');
   tbody.innerHTML = '';
   Object.entries(byOp).forEach(([op,v]) => {
-    const total = v.log+v.ent+v.ret;
+    const total = v.log+v.ent+v.ret+v.pau;
     tbody.innerHTML += `<tr>
       <td class="mono">${op}</td>
-      <td>${v.log?`<span class="pill pill-green">${v.log}</span>`:'—'}</td>
-      <td>${v.ent?`<span class="pill pill-yellow">${v.ent}</span>`:'—'}</td>
-      <td>${v.ret?`<span class="pill pill-red">${v.ret}</span>`:'—'}</td>
+      <td>${v.log?`<span class="pill pill-blue">${v.log}</span>`:'—'}</td>
+      <td>${v.ent?`<span class="pill pill-green">${v.ent}</span>`:'—'}</td>
+      <td>${v.ret?`<span class="pill pill-yellow">${v.ret}</span>`:'—'}</td>
+      <td>${v.pau?`<span class="pill pill-red">${v.pau}</span>`:'—'}</td>
       <td class="mono">${total}</td>
     </tr>`;
   });
