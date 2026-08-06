@@ -13,13 +13,14 @@ críticas, equipo, documentos y calificaciones PMR de forma centralizada y actua
 El dashboard lee sus datos al cargarse:
 
 - **`torre_de_control_CCR.xlsx`** — contiene información de productos críticos, adquisiciones
-  críticas, equipo, documentos, resultados, PMR, comentarios de cláusulas y change log.
+  críticas, equipo, documentos, resultados, comentarios de cláusulas y change log.
 - **`Status Date Clause Operation.csv`** — contiene el estado de cláusulas contractuales,
   descargado desde el tablero de PowerBI del BID.
 - **`Raw Data - <préstamo>.xlsx`** — uno por operación (opcional), con el detalle de los
   procesos de adquisición de esa operación. Ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación).
-- **`PMR_Historico.xlsx`** — opcional, con el histórico de ciclos PMR por operación.
-  Ver [Histórico de PMR por operación](#histórico-de-pmr-por-operación).
+- **`PMR_Historico.xlsx`** — fuente única del tab **PMR** (calificaciones, indicadores
+  y ciclos históricos). Sin este archivo el tab PMR no muestra tarjetas, pero el
+  resto del dashboard sigue funcionando igual. Ver [Datos de PMR por operación](#datos-de-pmr-por-operación).
 
 Los archivos se leen directamente desde este repositorio usando la API de GitHub.
 No se requiere instalación ni configuración — basta con abrir el link.
@@ -109,37 +110,70 @@ de `productos criticos`, como fallback automático.
 3. Sube el Excel actualizado. El dashboard detecta automáticamente que la operación
    ya tiene filas en `productos_adquisiciones` y empieza a buscar su raw data.
 
-## Histórico de PMR por operación
+## Datos de PMR por operación
 
-En el tab **PMR**, las tarjetas de las operaciones que tienen histórico cargado
-muestran una insignia **"🕑 Histórico"** — al hacer clic en la tarjeta se abre un
-popup con la tabla de todos los ciclos PMR registrados para esa operación.
+El tab **PMR** se alimenta enteramente de **`PMR_Historico.xlsx`** (raíz del
+repo) — no depende de ninguna hoja de `torre_de_control_CCR.xlsx`. Cada
+tarjeta muestra los datos del ciclo vigente (ver "Ciclo vigente y detección de
+datos desactualizados" abajo) y, al hacer clic, abre un popup con la tabla de
+todos los ciclos PMR registrados para esa operación.
 
-Esto depende del archivo:
+`PMR_Historico.xlsx` tiene **una hoja por operación**, nombrada exactamente
+igual al código de operación (`datos_ops.codigo`, ej. `CR-L1032`). Cada hoja
+tiene una fila por ciclo PMR, con columnas:
+`Ciclo | Estado del PMI | CPI | SPI | CPI(a) | SPI(a) | Disb | T3 | Indicador Sintético | Clasificación Auto calculada | Clasificación Validada | Comentarios de simulación PMR | Plan Acción 2026`.
 
-**`PMR_Historico.xlsx`** (raíz del repo, opcional): un archivo con **una hoja por
-operación**, nombrada exactamente igual al código de operación (`datos_ops.codigo`,
-ej. `CR-L1032`). Cada hoja tiene una fila por ciclo PMR, con columnas:
-`Ciclo | Estado del PMI | CPI | SPI | CPI(a) | SPI(a) | Disb | T3 | Indicador Sintético | Clasificación Auto calculada | Clasificación Validada`.
+Las dos últimas columnas (`Comentarios de simulación PMR` y `Plan Acción 2026`)
+son el análisis y plan de acción del ciclo actual — solo deberían llenarse en
+la fila del ciclo vigente; en ciclos pasados quedan vacías.
+
+`Estado del PMI` también determina la **Etapa** que muestra la tarjeta (1/2/3),
+según el texto exacto de la celda:
+
+| `Estado del PMI` | Etapa |
+|---|---|
+| Desde la Aprobación hasta la Elegibilidad | 1 |
+| Después de la Elegibilidad | 2 |
+| Después del proyecto alcanza el 95% de los desembolsos totales | 3 |
 
 No hay una cantidad fija de ciclos por operación — cada hoja tiene tantas filas
 como ciclos tenga esa operación (varía según su antigüedad), y el dashboard ordena
 los ciclos cronológicamente sin importar el orden de las filas en el archivo.
 
-Hoy el archivo trae **una sola fila semilla por operación** (el ciclo actual,
-"Ciclo I-2026"), tomada de lo que ya existía en la hoja `PMR` — a la espera de
-que se consiga la fuente real con el histórico completo (2015 en adelante, según
-el reporte de origen) para completar cada hoja con sus ciclos anteriores.
+Si una operación no tiene hoja en `PMR_Historico.xlsx` (o el archivo no está
+disponible), simplemente no aparece en el tab PMR.
 
 ### Cómo agregar ciclos históricos
 
 1. Abre `PMR_Historico.xlsx` y ve a la hoja de la operación correspondiente
    (créala si la operación todavía no tiene hoja, usando su código como nombre).
-2. Agrega una fila por cada ciclo adicional, con las columnas de arriba.
+2. Agrega una fila por cada ciclo adicional, con las columnas de arriba, dejando
+   `Comentarios de simulación PMR` y `Plan Acción 2026` vacías (son solo del
+   ciclo vigente).
 3. Sube el archivo actualizado (ver "Pasos para subir archivos").
 
-Si una operación no tiene hoja en `PMR_Historico.xlsx` (o el archivo no está
-disponible), su tarjeta en el tab PMR se ve igual que hoy, sin insignia ni clic.
+### Ciclo vigente y detección de datos desactualizados
+
+El ciclo PMR vigente se declara en un **único lugar**: la constante
+`PMR_CURRENT_CYCLE` en `index.html` (junto con `PMR_CURRENT_CYCLE_LABEL` y
+`PMR_CURRENT_CYCLE_CUTOFF`, que arman el texto del encabezado del tab). Al
+cerrar cada ciclo, el administrador edita estas 3 líneas — no hay que tocar
+nada más en el código.
+
+Con base en esa constante, cada tarjeta busca en la hoja de su operación una
+fila cuyo `Ciclo` coincida exactamente con `PMR_CURRENT_CYCLE` (tolerando
+mayúsculas/tildes/espacios) y muestra esa fila. Si no encuentra ninguna,
+muestra en su lugar la fila más reciente disponible junto con una advertencia:
+
+> ⚠ Datos de "\<ciclo\>" — no hay ciclo vigente (\<PMR_CURRENT_CYCLE\>) cargado en el histórico
+
+Esto avisa cuando a una operación se le olvidó agregar la fila del ciclo
+nuevo en `PMR_Historico.xlsx` (ver "Cómo agregar ciclos históricos" arriba),
+para que no se confunda con datos vigentes. La advertencia no afecta la
+clasificación de la tarjeta en los KPI del tab (Satisfactorio / Alerta /
+Problema / Sin calificación) — esos siguen sumando la calificación de la fila
+mostrada en cada tarjeta, y la suma de las 4 categorías sigue siendo igual a
+la cantidad total de tarjetas mostradas.
 
 ## Cómo registrar comentarios en cláusulas vencidas
 
@@ -169,7 +203,7 @@ El dashboard mostrará el comentario más reciente por cláusula en el tab **Cl�
 | Productos Críticos | xlsx + raw data | Estado de productos con filtro por operación (Logrado / En tiempo / Retrasado). Cada producto muestra el nombre de su(s) adquisición(es) crítica(s) como chip clicable, con detalle de ID de proceso, monto, estado y método |
 | Equipo | xlsx | Composición del equipo por operación con alerta de roles faltantes |
 | Documentos | xlsx | Matriz de documentos clave con enlaces a SharePoint por tipo y operación |
-| PMR | xlsx + PMR_Historico | Calificaciones e indicadores técnicos del ciclo PMR I-2026 por programa. Las tarjetas con histórico cargado son clicables y muestran la tabla de ciclos anteriores (ver [Histórico de PMR por operación](#histórico-de-pmr-por-operación)) |
+| PMR | PMR_Historico | Calificaciones e indicadores técnicos del ciclo PMR vigente por programa. Las tarjetas son clicables y muestran la tabla de ciclos anteriores; las que tienen el histórico desactualizado respecto al ciclo vigente muestran una advertencia (ver [Datos de PMR por operación](#datos-de-pmr-por-operación)) |
 | Change Log | xlsx | Historial de cambios registrados en el Excel (más reciente primero) |
 
 ## Estructura del repositorio
@@ -177,10 +211,10 @@ El dashboard mostrará el comentario más reciente por cláusula en el tab **Cl�
 | Archivo | Descripción |
 |---------|-------------|
 | `index.html` | Dashboard completo (aplicación de una sola página, sin servidor) |
-| `torre_de_control_CCR.xlsx` | Datos: productos críticos, adquisiciones críticas, equipo, PMR, documentos, resultados, comentarios de cláusulas y changelog |
+| `torre_de_control_CCR.xlsx` | Datos: productos críticos, adquisiciones críticas, equipo, documentos, resultados, comentarios de cláusulas y changelog |
 | `Status Date Clause Operation.csv` | Estado de cláusulas contractuales (fuente: PowerBI BID) |
 | `Raw Data - <préstamo>.xlsx` | Detalle del Plan de Adquisiciones por operación (uno por préstamo con datos cargados; ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)) |
-| `PMR_Historico.xlsx` | Histórico de ciclos PMR, una hoja por operación (ver [Histórico de PMR por operación](#histórico-de-pmr-por-operación)) |
+| `PMR_Historico.xlsx` | Fuente única del tab PMR: calificaciones, indicadores y ciclos históricos, una hoja por operación (ver [Datos de PMR por operación](#datos-de-pmr-por-operación)) |
 | `README.md` | Este archivo |
 
 ### Hojas del Excel
@@ -191,7 +225,6 @@ El dashboard mostrará el comentario más reciente por cláusula en el tab **Cl�
 | `productos_adquisiciones` | Relación producto crítico ↔ ID de proceso de adquisición, con marca de criticidad y riesgo |
 | `equipo` | Roles y personas asignadas por operación |
 | `documentos` | Matriz de documentos con links a SharePoint |
-| `PMR` | Calificaciones y plan de acción PMR |
 | `datos_ops` | Catálogo de operaciones (código, préstamo y nombre) |
 | `resultados` | Indicadores de la Matriz de Resultados |
 | `productos_resultados` | Relación indicador ↔ producto |
