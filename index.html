@@ -347,8 +347,8 @@
   </div>
 
   <div id="pmr" class="panel">
-    <div class="section-head"><h2>PMR — Ciclo I-2026</h2></div>
-    <div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:20px;">Con corte de datos a diciembre 2025</div>
+    <div class="section-head"><h2>PMR — <span id="pmr-cycle-label"></span></h2></div>
+    <div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:20px;" id="pmr-cycle-cutoff"></div>
 
     <!-- KPI chips por calificación -->
     <div class="stat-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
@@ -435,6 +435,13 @@ const DB_NAME = 'TorreControlCCR', DB_STORE = 'excel', DB_KEY = 'file';
 const EXCEL_URL = 'https://raw.githubusercontent.com/aborbonm/torre-control-ccr/main/torre_de_control_CCR.xlsx';
 const CSV_URL   = 'https://raw.githubusercontent.com/aborbonm/torre-control-ccr/main/Status%20Date%20Clause%20Operation.csv';
 const PMR_HISTORY_URL = 'https://raw.githubusercontent.com/aborbonm/torre-control-ccr/main/PMR_Historico.xlsx';
+
+// Único lugar donde se declara el ciclo PMR vigente. Controla el encabezado
+// del tab PMR y la validación de qué operaciones tienen su histórico al día
+// (ver PMR_Historico.xlsx). Editar estas 3 líneas al cerrar cada ciclo.
+const PMR_CURRENT_CYCLE = 'Segundo período enero-diciembre 2025';
+const PMR_CURRENT_CYCLE_LABEL = 'Ciclo I-2026';
+const PMR_CURRENT_CYCLE_CUTOFF = 'Con corte de datos a diciembre 2025';
 
 function openDB() {
   return new Promise((res, rej) => {
@@ -755,6 +762,11 @@ function ordenCicloFor(ciclo) {
   if (!m) return 0;
   const sem = /segundo/i.test(m[1]) ? 2 : 1;
   return parseInt(m[2], 10) * 10 + sem;
+}
+
+// Compara etiquetas de ciclo tolerando mayúsculas/tildes/espacios extra.
+function normalizeCiclo(ciclo) {
+  return String(ciclo || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
 function parsePmrHistorySheet(ws) {
@@ -1738,6 +1750,9 @@ function pmrPill(cal, small) {
 }
 
 function renderPMR(wb) {
+  document.getElementById('pmr-cycle-label').textContent = PMR_CURRENT_CYCLE_LABEL;
+  document.getElementById('pmr-cycle-cutoff').textContent = PMR_CURRENT_CYCLE_CUTOFF;
+
   const ws = getSheet(wb, 'PMR') || getSheet(wb, 'pmr'); if (!ws) return;
   const rows = sheetToArr(ws);
 
@@ -1891,9 +1906,16 @@ function renderPMR(wb) {
                     : calTop.includes('SATISFACTORIO')  ? 'rgba(16,185,129,.25)'
                     : 'var(--border)';
 
-    const tieneHistorico = (_pmrHistoryMap[prog] || []).length > 0;
+    const cyclesForOp = _pmrHistoryMap[prog] || [];
+    const tieneHistorico = cyclesForOp.length > 0;
+    const cicloDesactualizado = tieneHistorico && normalizeCiclo(cyclesForOp[0].ciclo) !== normalizeCiclo(PMR_CURRENT_CYCLE);
     const safeProg = prog.replace(/'/g, "\\'");
     const clickAttrs = tieneHistorico ? ` style="border-color:${borderClr};cursor:pointer" onclick="showPmrHistoryPopup('${safeProg}')"` : ` style="border-color:${borderClr}"`;
+
+    const staleHtml = cicloDesactualizado ? `
+      <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:8px 12px;font-family:var(--mono);font-size:11px;color:var(--yellow);">
+        &#9888; Datos de "${cyclesForOp[0].ciclo}" — no hay ciclo vigente (${PMR_CURRENT_CYCLE}) cargado en el histórico
+      </div>` : '';
 
     grid.innerHTML += `<div class="pmr-card"${clickAttrs}>
       <div class="pmr-card-head">
@@ -1907,6 +1929,7 @@ function renderPMR(wb) {
         </div>
       </div>
       <div class="pmr-body">
+        ${staleHtml}
         ${calHtml}
         ${indsHtml}
         ${comentHtml}

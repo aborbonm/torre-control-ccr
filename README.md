@@ -141,6 +141,31 @@ el reporte de origen) para completar cada hoja con sus ciclos anteriores.
 Si una operación no tiene hoja en `PMR_Historico.xlsx` (o el archivo no está
 disponible), su tarjeta en el tab PMR se ve igual que hoy, sin insignia ni clic.
 
+### Ciclo vigente y detección de datos desactualizados
+
+El ciclo PMR vigente se declara en un **único lugar**: la constante
+`PMR_CURRENT_CYCLE` en `index.html` (junto con `PMR_CURRENT_CYCLE_LABEL` y
+`PMR_CURRENT_CYCLE_CUTOFF`, que arman el texto del encabezado del tab). Al
+cerrar cada ciclo, el administrador edita estas 3 líneas — no hay que tocar
+nada más en el código.
+
+Con base en esa constante, el dashboard valida automáticamente si el
+histórico de cada operación está al día: compara `PMR_CURRENT_CYCLE` con el
+`Ciclo` más reciente de la hoja de esa operación en `PMR_Historico.xlsx`
+(tolerando mayúsculas/tildes/espacios). Si no coinciden, la tarjeta muestra
+una advertencia:
+
+> ⚠ Datos de "\<ciclo\>" — no hay ciclo vigente (\<PMR_CURRENT_CYCLE\>) cargado en el histórico
+
+Esto avisa cuando a una operación se le olvidó agregar la fila del ciclo
+nuevo en `PMR_Historico.xlsx` (ver "Cómo agregar ciclos históricos" arriba),
+para que no se confunda con datos vigentes. La advertencia no afecta la
+clasificación de la tarjeta en los KPI del tab (Satisfactorio / Alerta /
+Problema / Sin calificación) — esos siguen sumando la calificación normal de
+`PMR`, y la suma de las 4 categorías sigue siendo igual a la cantidad total
+de tarjetas mostradas. Operaciones sin ninguna hoja en `PMR_Historico.xlsx`
+no se marcan como desactualizadas (no hay con qué compararlas).
+
 ## Cómo registrar comentarios en cláusulas vencidas
 
 1. Abre `torre_de_control_CCR.xlsx` y ve a la hoja **`comentarios_clausulas`**
@@ -169,7 +194,7 @@ El dashboard mostrará el comentario más reciente por cláusula en el tab **Cl�
 | Productos Críticos | xlsx + raw data | Estado de productos con filtro por operación (Logrado / En tiempo / Retrasado). Cada producto muestra el nombre de su(s) adquisición(es) crítica(s) como chip clicable, con detalle de ID de proceso, monto, estado y método |
 | Equipo | xlsx | Composición del equipo por operación con alerta de roles faltantes |
 | Documentos | xlsx | Matriz de documentos clave con enlaces a SharePoint por tipo y operación |
-| PMR | xlsx + PMR_Historico | Calificaciones e indicadores técnicos del ciclo PMR I-2026 por programa. Las tarjetas con histórico cargado son clicables y muestran la tabla de ciclos anteriores (ver [Histórico de PMR por operación](#histórico-de-pmr-por-operación)) |
+| PMR | xlsx + PMR_Historico | Calificaciones e indicadores técnicos del ciclo PMR vigente por programa. Las tarjetas con histórico cargado son clicables y muestran la tabla de ciclos anteriores; las que tienen el histórico desactualizado respecto al ciclo vigente muestran una advertencia (ver [Histórico de PMR por operación](#histórico-de-pmr-por-operación)) |
 | Change Log | xlsx | Historial de cambios registrados en el Excel (más reciente primero) |
 
 ## Estructura del repositorio
