@@ -780,6 +780,8 @@ function parsePmrHistorySheet(ws) {
     indSintetico: r[8],
     clasifAuto: s(r[9]),
     clasifValidada: s(r[10]),
+    comentarios: s(r[11]),
+    planAccion: s(r[12]),
     ordenCiclo: ordenCicloFor(r[0]),
   })).sort((a, b) => b.ordenCiclo - a.ordenCiclo);
 }
@@ -1749,65 +1751,41 @@ function pmrPill(cal, small) {
   return `<span class="pill ${cls}" style="${sz}">${label}</span>`;
 }
 
+// Deriva la Etapa (1/2/3) a partir del texto de "Estado del PMI".
+function etapaFromEstadoPmi(estado) {
+  const e = normalizeCiclo(estado);
+  if (!e) return null;
+  if (e.includes('95% de los desembolsos')) return 3;
+  if (e.includes('despues de la elegibilidad')) return 2;
+  if (e.includes('desde la aprobacion hasta la elegibilidad')) return 1;
+  return null;
+}
+
 function renderPMR(wb) {
   document.getElementById('pmr-cycle-label').textContent = PMR_CURRENT_CYCLE_LABEL;
   document.getElementById('pmr-cycle-cutoff').textContent = PMR_CURRENT_CYCLE_CUTOFF;
 
-  const ws = getSheet(wb, 'PMR') || getSheet(wb, 'pmr'); if (!ws) return;
-  const rows = sheetToArr(ws);
-
-  // Find header row: the one where ANY cell equals exactly 'Programa'
-  const hIdx = rows.findIndex(r => r.some(c => String(c||'').trim() === 'Programa'));
-  if (hIdx < 0) return;
-  const headerRow = rows[hIdx];
-
-  // Resolve column indices DYNAMICALLY from the header row — immune to range shifts
-  // There are two cols named 'Calificación Calculada' and two named 'Calificación Validada'
-  // We want the SECOND occurrence of each (cols F and G, the real data ones)
-  function findCol(label, nth) {
-    nth = nth || 1;
-    let count = 0;
-    for (let i = 0; i < headerRow.length; i++) {
-      if (String(headerRow[i]||'').trim() === label) {
-        count++;
-        if (count === nth) return i;
-      }
-    }
-    return -1;
-  }
-  function findColFirst(label) {
-    for (let i = 0; i < headerRow.length; i++) {
-      if (String(headerRow[i]||'').trim() === label) return i;
-    }
-    return -1;
+  // Nombre de cada operación, tomado de datos_ops (col B=codigo, col E=nombre)
+  const wsOps = getSheet(wb, 'datos_ops');
+  const opNombre = {};
+  if (wsOps) {
+    sheetToArr(wsOps).forEach(r => {
+      const codigo = s(r[0]), nombre = s(r[3]);
+      if (codigo && nombre && !opNombre[codigo]) opNombre[codigo] = nombre;
+    });
   }
 
-  const iPrograma  = findColFirst('Programa');
-  const iNombre    = findColFirst('Nombre');
-  const iCalcCalc  = findColFirst('Calificación Calculada');  // col D (only occurrence)
-  const iCalcVal   = findColFirst('Calificación Validada');   // col E (only occurrence, now explicit values)
-  const iDesemb    = findColFirst('Desembolsos');
-  const iSPI       = findColFirst('SPI');
-  const iSPIa      = findColFirst('SPI(a)');
-  const iCPI       = findColFirst('CPI');
-  const iCPIa      = findColFirst('CPI(a)');
-  const iMeses     = findColFirst('meses desde 95%');
-  const iEtapa     = findColFirst('Etapa');
-  const iComent    = findColFirst('Comentarios de simulación PMR');
-  const iPlan      = findColFirst('Plan Acción 2026');
+  const labelComent = 'Comentarios de simulación PMR';
+  const labelPlan   = 'Plan Acción 2026';
 
-  // Use actual header labels for section titles
-  const labelComent = s(headerRow[iComent]) || 'Comentarios de simulación PMR';
-  const labelPlan   = s(headerRow[iPlan])   || 'Plan Acción 2026';
+  const codigos = Object.keys(_pmrHistoryMap);
 
-  const data = rows.slice(hIdx + 1).filter(r => r[iPrograma] != null);
-
-  // KPI counts by Calificación Validada
+  // KPI counts por calificación del ciclo mostrado en cada tarjeta
   let sat=0, ale=0, pro=0, sin=0;
-  data.forEach(r => {
-    // Use validated when explicit, otherwise fall back to calculated
-    const calV = s(r[iCalcVal]);
-    const cal = String(calV || s(r[iCalcCalc]) || '').trim().toUpperCase();
+  codigos.forEach(codigo => {
+    const cycles = _pmrHistoryMap[codigo];
+    const row = cycles.find(c => normalizeCiclo(c.ciclo) === normalizeCiclo(PMR_CURRENT_CYCLE)) || cycles[0];
+    const cal = String(row.clasifValidada || row.clasifAuto || '').trim().toUpperCase();
     if (cal.includes('SATISFACTORIO')) sat++;
     else if (cal.includes('ALERTA'))   ale++;
     else if (cal.includes('PROBLEMA')) pro++;
@@ -1835,28 +1813,29 @@ function renderPMR(wb) {
   const grid = document.getElementById('pmr-grid');
   grid.innerHTML = '';
 
-  data.forEach(r => {
-    const prog    = s(r[iPrograma]);
-    const nombre  = iNombre   >= 0 ? s(r[iNombre])   : '';
-    const calCalc = iCalcCalc >= 0 ? s(r[iCalcCalc]) : '';
-    // SheetJS does not resolve formulas (=+F5) — they come back as null.
-    // When calVal is null/empty it means the formula = calCalc, so use calCalc as fallback.
-    const calValRaw = iCalcVal >= 0 ? s(r[iCalcVal]) : '';
-    const calVal  = calValRaw || calCalc;   // null formula → same as calculada
+  codigos.forEach(prog => {
+    const cycles = _pmrHistoryMap[prog];
+    const currentRow = cycles.find(c => normalizeCiclo(c.ciclo) === normalizeCiclo(PMR_CURRENT_CYCLE));
+    const cicloDesactualizado = !currentRow;
+    const row = currentRow || cycles[0];
+
+    const nombre  = opNombre[prog] || '';
+    const calCalc = row.clasifAuto;
+    const calValRaw = row.clasifValidada;
+    const calVal  = calValRaw || calCalc;   // sin validación explícita → misma que calculada
     const calShow = calVal || calCalc;
-    // Only flag as "ajustada" when the cell has an explicit text value different from calCalc
+    // Solo se marca "ajustada" cuando hay un valor validado explícito distinto al calculado
     const difieren = calValRaw && calCalc && calValRaw.toUpperCase() !== calCalc.toUpperCase();
 
     const indDefs = [
-      { label:'Desemb.',    idx:iDesemb },
-      { label:'SPI',        idx:iSPI    },
-      { label:'SPI(a)',     idx:iSPIa   },
-      { label:'CPI',        idx:iCPI    },
-      { label:'CPI(a)',     idx:iCPIa   },
-      { label:'Meses 95%',  idx:iMeses,  nocolor:true },
-      { label:'Etapa',      idx:iEtapa,  nocolor:true },
-    ].filter(d => d.idx >= 0)
-     .map(d => ({ ...d, fmt: fmtInd(r[d.idx]), raw: r[d.idx] }))
+      { label:'Desemb.',    raw:row.disb },
+      { label:'SPI',        raw:row.spi  },
+      { label:'SPI(a)',     raw:row.spiA },
+      { label:'CPI',        raw:row.cpi  },
+      { label:'CPI(a)',     raw:row.cpiA },
+      { label:'Meses 95%',  raw:row.t3,  nocolor:true },
+      { label:'Etapa',      raw:etapaFromEstadoPmi(row.estadoPmi), nocolor:true },
+    ].map(d => ({ ...d, fmt: fmtInd(d.raw) }))
      .filter(d => d.fmt !== 'N/A' && d.fmt !== '');
 
     const indsHtml = indDefs.length ? `
@@ -1885,8 +1864,8 @@ function renderPMR(wb) {
         <span style="font-family:var(--mono);font-size:10px;color:var(--yellow);margin-left:2px;">Ajustada por la COF</span>
       </div>` : '';
 
-    const coment = iComent >= 0 ? s(r[iComent]) : '';
-    const plan   = iPlan   >= 0 ? s(r[iPlan])   : '';
+    const coment = row.comentarios || '';
+    const plan   = row.planAccion || '';
 
     const comentHtml = coment ? `
       <div>
@@ -1906,15 +1885,12 @@ function renderPMR(wb) {
                     : calTop.includes('SATISFACTORIO')  ? 'rgba(16,185,129,.25)'
                     : 'var(--border)';
 
-    const cyclesForOp = _pmrHistoryMap[prog] || [];
-    const tieneHistorico = cyclesForOp.length > 0;
-    const cicloDesactualizado = tieneHistorico && normalizeCiclo(cyclesForOp[0].ciclo) !== normalizeCiclo(PMR_CURRENT_CYCLE);
     const safeProg = prog.replace(/'/g, "\\'");
-    const clickAttrs = tieneHistorico ? ` style="border-color:${borderClr};cursor:pointer" onclick="showPmrHistoryPopup('${safeProg}')"` : ` style="border-color:${borderClr}"`;
+    const clickAttrs = ` style="border-color:${borderClr};cursor:pointer" onclick="showPmrHistoryPopup('${safeProg}')"`;
 
     const staleHtml = cicloDesactualizado ? `
       <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:8px 12px;font-family:var(--mono);font-size:11px;color:var(--yellow);">
-        &#9888; Datos de "${cyclesForOp[0].ciclo}" — no hay ciclo vigente (${PMR_CURRENT_CYCLE}) cargado en el histórico
+        &#9888; Datos de "${row.ciclo}" — no hay ciclo vigente (${PMR_CURRENT_CYCLE}) cargado en el histórico
       </div>` : '';
 
     grid.innerHTML += `<div class="pmr-card"${clickAttrs}>
@@ -1924,7 +1900,7 @@ function renderPMR(wb) {
           ${nombre ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;font-family:var(--mono);line-height:1.4">${nombre}</div>` : ''}
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
-          ${tieneHistorico ? `<span class="pmr-hist-badge" title="Ver histórico de ciclos">&#x1F551; Histórico</span>` : ''}
+          <span class="pmr-hist-badge" title="Ver histórico de ciclos">&#x1F551; Histórico</span>
           ${pmrPill(calShow)}
         </div>
       </div>
