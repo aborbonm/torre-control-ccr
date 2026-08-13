@@ -202,7 +202,7 @@ El dashboard mostrará el comentario más reciente por cláusula en el tab **Cl�
 | Resultados | xlsx + raw data | Indicadores de la Matriz de Resultados agrupados por operación y objetivo, con probabilidad Alta/Media/Baja. Los chips de producto crítico muestran su(s) adquisición(es) crítica(s) al hacer clic (ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)) |
 | Productos Críticos | xlsx + raw data | Estado de productos con filtro por operación (Logrado / En tiempo / Retrasado). Cada producto muestra el nombre de su(s) adquisición(es) crítica(s) como chip clicable, con detalle de ID de proceso, monto, estado y método |
 | Equipo | xlsx | Composición del equipo por operación con alerta de roles faltantes |
-| Documentos | xlsx | Matriz de documentos clave con enlaces a SharePoint por tipo y operación |
+| Documentos | xlsx | Matriz de documentos clave con enlaces a SharePoint por tipo y operación (p. ej. Firma autorizada, PP, LC, ROP, PEP, Provisionamiento Portal del Cliente, entre otros) |
 | PMR | PMR_Historico | Calificaciones e indicadores técnicos del ciclo PMR vigente por programa. Las tarjetas son clicables y muestran la tabla de ciclos anteriores; las que tienen el histórico desactualizado respecto al ciclo vigente muestran una advertencia (ver [Datos de PMR por operación](#datos-de-pmr-por-operación)) |
 | Change Log | xlsx | Historial de cambios registrados en el Excel (más reciente primero) |
 
@@ -224,7 +224,7 @@ El dashboard mostrará el comentario más reciente por cláusula en el tab **Cl�
 | `productos criticos` | Estado de productos por operación |
 | `productos_adquisiciones` | Relación producto crítico ↔ ID de proceso de adquisición, con marca de criticidad y riesgo |
 | `equipo` | Roles y personas asignadas por operación |
-| `documentos` | Matriz de documentos con links a SharePoint |
+| `documentos` | Matriz de documentos con links a SharePoint (p. ej. Firma autorizada, PP, LC, ROP, PEP, Provisionamiento Portal del Cliente, entre otros) |
 | `datos_ops` | Catálogo de operaciones (código, préstamo y nombre) |
 | `resultados` | Indicadores de la Matriz de Resultados |
 | `productos_resultados` | Relación indicador ↔ producto |
