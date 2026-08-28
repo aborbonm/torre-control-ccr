@@ -21,6 +21,10 @@ El dashboard lee sus datos al cargarse:
 - **`PMR_Historico.xlsx`** — fuente única del tab **PMR** (calificaciones, indicadores
   y ciclos históricos). Sin este archivo el tab PMR no muestra tarjetas, pero el
   resto del dashboard sigue funcionando igual. Ver [Datos de PMR por operación](#datos-de-pmr-por-operación).
+- **`agreement_report.xlsx`** — fuente única del tab **Acuerdos** (acuerdos de las
+  Revisiones de Cartera del BID). Sin este archivo el tab Acuerdos no muestra
+  datos, pero el resto del dashboard sigue funcionando igual. Ver
+  [Acuerdos de Revisión de Cartera](#acuerdos-de-revisión-de-cartera).
 
 Los archivos se leen directamente desde este repositorio usando la API de GitHub.
 No se requiere instalación ni configuración — basta con abrir el link.
@@ -175,6 +179,44 @@ Problema / Sin calificación) — esos siguen sumando la calificación de la fil
 mostrada en cada tarjeta, y la suma de las 4 categorías sigue siendo igual a
 la cantidad total de tarjetas mostradas.
 
+## Acuerdos de Revisión de Cartera
+
+El tab **Acuerdos** se alimenta enteramente de **`agreement_report.xlsx`**
+(raíz del repo) — un reporte exportado del portal del BID con los acuerdos
+de las Revisiones de Cartera (RGC) de cada operación. No depende de ninguna
+hoja de `torre_de_control_CCR.xlsx`.
+
+El archivo tiene una sola hoja, con columnas (entre otras que el dashboard
+ignora): `Proyecto | Nombre del Proyecto | Estado | Descripción del acuerdo |
+Fecha de Vencimiento | Responsable | Nueva Fecha de Vencimiento`.
+
+El dashboard **no usa los totales del pie del reporte** ("Total acuerdos:
+...") — carga todas las filas de datos y calcula sus propios conteos. Tampoco
+usa el `Estado` del Excel tal cual; lo traduce a 4 categorías propias:
+
+| `Estado` en el Excel | Regla | Categoría mostrada |
+|---|---|---|
+| `Cumplidos` | — | **Cumplido** (verde) |
+| `Cancelados` | — | **Eliminado** (azul) |
+| `Vigente` / `Pendientes de aprobación` | fecha de vencimiento efectiva ≥ hoy | **En proceso** (amarillo) |
+| `Vigente` / `Pendientes de aprobación` | fecha de vencimiento efectiva < hoy | **Retrasado** (rojo) |
+
+La "fecha de vencimiento efectiva" es `Nueva Fecha de Vencimiento` cuando
+tiene un valor real (no vacío ni `-`); si no, es `Fecha de Vencimiento`. Por
+esto, un acuerdo puede aparecer como "Retrasado" en el dashboard aunque el
+Excel diga `Vigente` — el reporte del BID no recalcula ese estado
+automáticamente cuando pasa la fecha.
+
+### Cómo actualizar los acuerdos
+
+1. Descarga el reporte actualizado desde el portal del BID (reporte de
+   Acuerdos, filtrado por País = Costa Rica).
+2. Sube el archivo con el nombre exacto `agreement_report.xlsx` a la raíz
+   del repositorio (ver "Pasos para subir archivos").
+
+El dashboard reflejará los acuerdos nuevos, cerrados o con fecha modificada
+en la próxima visita o al presionar **Actualizar Datos**.
+
 ## Cómo registrar comentarios en cláusulas vencidas
 
 1. Abre `torre_de_control_CCR.xlsx` y ve a la hoja **`comentarios_clausulas`**
@@ -204,6 +246,7 @@ El dashboard mostrará el comentario más reciente por cláusula en el tab **Cl�
 | Equipo | xlsx | Composición del equipo por operación con alerta de roles faltantes |
 | Documentos | xlsx | Matriz de documentos clave con enlaces a SharePoint por tipo y operación (p. ej. Firma autorizada, PP, LC, ROP, PEP, Provisionamiento Portal del Cliente, entre otros) |
 | PMR | PMR_Historico | Calificaciones e indicadores técnicos del ciclo PMR vigente por programa. Las tarjetas son clicables y muestran la tabla de ciclos anteriores; las que tienen el histórico desactualizado respecto al ciclo vigente muestran una advertencia (ver [Datos de PMR por operación](#datos-de-pmr-por-operación)) |
+| Acuerdos | agreement_report | Acuerdos de Revisión de Cartera por operación, con estado calculado (Cumplido / En proceso / Retrasado / Eliminado), gráfico por operación, distribución por estado y filtro por operación (ver [Acuerdos de Revisión de Cartera](#acuerdos-de-revisión-de-cartera)) |
 | Change Log | xlsx | Historial de cambios registrados en el Excel (más reciente primero) |
 
 ## Estructura del repositorio
@@ -215,6 +258,7 @@ El dashboard mostrará el comentario más reciente por cláusula en el tab **Cl�
 | `Status Date Clause Operation.csv` | Estado de cláusulas contractuales (fuente: PowerBI BID) |
 | `Raw Data - <préstamo>.xlsx` | Detalle del Plan de Adquisiciones por operación (uno por préstamo con datos cargados; ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)) |
 | `PMR_Historico.xlsx` | Fuente única del tab PMR: calificaciones, indicadores y ciclos históricos, una hoja por operación (ver [Datos de PMR por operación](#datos-de-pmr-por-operación)) |
+| `agreement_report.xlsx` | Fuente única del tab Acuerdos: acuerdos de Revisión de Cartera por operación (ver [Acuerdos de Revisión de Cartera](#acuerdos-de-revisión-de-cartera)) |
 | `README.md` | Este archivo |
 
 ### Hojas del Excel

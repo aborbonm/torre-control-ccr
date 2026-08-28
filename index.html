@@ -214,9 +214,17 @@
   .docs-legend-item{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--muted);}
   .docs-legend-dot{width:9px;height:9px;border-radius:3px;}
 
+  .acd-chart-row{display:grid;grid-template-columns:1fr 320px;gap:14px;margin-bottom:24px;}
+  .acd-chart-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;}
+  .acd-chart-card h3{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;font-weight:500;}
+  .acd-legend-row{display:flex;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:10px;}
+  .acd-legend-row span{display:flex;align-items:center;gap:5px;}
+  .acd-legend-dot{width:7px;height:7px;border-radius:999px;display:inline-block;}
+
   @media(max-width:900px){
     header{padding:14px 18px;}nav{padding:10px 18px 0;}main{padding:16px 18px;}
     .stat-row{grid-template-columns:repeat(2,1fr);}
+    .acd-chart-row{grid-template-columns:1fr;}
   }
 </style>
 </head>
@@ -260,6 +268,7 @@
   <div class="tab" onclick="showTab('equipo',this)">Equipo</div>
   <div class="tab" onclick="showTab('documentos',this)">Documentos</div>
   <div class="tab" onclick="showTab('pmr',this)">PMR</div>
+  <div class="tab" onclick="showTab('acuerdos',this)">Acuerdos <span class="badge badge-yellow" id="badge-acd">—</span></div>
   <div class="tab" onclick="showTab('changelog',this)">Change Log <span class="badge badge-blue" id="badge-cl">—</span></div>
 </nav>
 
@@ -363,6 +372,39 @@
     <div id="pmr-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;margin-bottom:24px;"></div>
   </div>
 
+  <div id="acuerdos" class="panel">
+    <div class="stat-row">
+      <div class="stat-card green"><div class="stat-label">Cumplidos</div><div class="stat-value" id="acd-cumplido">—</div><div class="stat-sub" id="acd-cumplido-pct"></div></div>
+      <div class="stat-card yellow"><div class="stat-label">En proceso</div><div class="stat-value" id="acd-proceso">—</div><div class="stat-sub" id="acd-proceso-pct"></div></div>
+      <div class="stat-card red"><div class="stat-label">Retrasados</div><div class="stat-value" id="acd-retrasado">—</div><div class="stat-sub" id="acd-retrasado-pct"></div></div>
+      <div class="stat-card blue"><div class="stat-label">Total acuerdos</div><div class="stat-value" id="acd-total">—</div><div class="stat-sub" id="acd-eliminado-pct">RGC vigente</div></div>
+    </div>
+
+    <div class="acd-chart-row">
+      <div class="acd-chart-card">
+        <h3>Acuerdos por operación</h3>
+        <div id="acd-bar-holder"></div>
+      </div>
+      <div class="acd-chart-card">
+        <h3>Distribución por estado</h3>
+        <div id="acd-donut-holder"></div>
+        <div class="acd-legend-row" id="acd-donut-legend"></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;align-items:center;">
+      <span style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);">Operación:</span>
+      <div id="acd-filter-ops" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+      <button onclick="resetAcdFilter()" style="font-family:var(--mono);font-size:11px;background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:100px;cursor:pointer;margin-left:8px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">↺ Todas</button>
+    </div>
+
+    <div class="section-head"><h2>Seguimiento de acuerdos</h2></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Operación</th><th>Acuerdo</th><th>Fecha vencimiento</th><th>Días</th><th>Estado</th><th>Responsable</th><th>Comentario</th></tr></thead>
+      <tbody id="t-acuerdos"></tbody>
+    </table></div>
+  </div>
+
   <div id="changelog" class="panel">
     <div class="section-head"><h2>Historial de cambios</h2></div>
     <div class="table-wrap" style="padding:18px 22px"><div id="changelog-list"></div></div>
@@ -436,6 +478,7 @@ const DB_NAME = 'TorreControlCCR', DB_STORE = 'excel', DB_KEY = 'file';
 const EXCEL_URL = 'https://raw.githubusercontent.com/aborbonm/torre-control-ccr/main/torre_de_control_CCR.xlsx';
 const CSV_URL   = 'https://raw.githubusercontent.com/aborbonm/torre-control-ccr/main/Status%20Date%20Clause%20Operation.csv';
 const PMR_HISTORY_URL = 'https://raw.githubusercontent.com/aborbonm/torre-control-ccr/main/PMR_Historico.xlsx';
+const AGREEMENTS_URL = 'https://raw.githubusercontent.com/aborbonm/torre-control-ccr/main/agreement_report.xlsx';
 
 // Único lugar donde se declara el ciclo PMR vigente. Controla el encabezado
 // del tab PMR y la validación de qué operaciones tienen su histórico al día
@@ -555,6 +598,7 @@ async function fetchExcel(forceRefresh) {
         const csvText = cachedCsv ? cachedCsv.data : '';
         _rawProcMap = await loadRawDataMap(wb, true);
         _pmrHistoryMap = await loadPmrHistoryMap(true);
+        _acdData = await loadAgreementsData(true);
         renderAll(wb, csvText);
         document.getElementById('file-picker').classList.add('hidden');
         await updateFileDateChips(true);
@@ -607,6 +651,7 @@ async function fetchAndUpdate() {
 
     _rawProcMap = await loadRawDataMap(wb, false);
     _pmrHistoryMap = await loadPmrHistoryMap(false);
+    _acdData = await loadAgreementsData(false);
     renderAll(wb, csvText);
     document.getElementById('file-picker').classList.add('hidden');
     document.getElementById('loader').classList.add('hidden');
@@ -822,6 +867,107 @@ async function loadPmrHistoryMap(useCacheOnly) {
   return map;
 }
 
+// ── Acuerdos de Revisión de Cartera (agreement_report.xlsx) ──
+// Un solo archivo, una sola hoja, se intenta cargar siempre — si falla, el tab
+// Acuerdos queda vacío pero el resto del dashboard sigue funcionando igual.
+let _acdData = []; // [{programa, acuerdo, estadoRaw, fechaVenceStr, fechaNuevaStr, responsable, comentario, estado}]
+const AGREEMENTS_CACHE_KEY = 'agreements';
+
+const MESES_ABR = {ene:0,feb:1,mar:2,abr:3,may:4,jun:5,jul:6,ago:7,sep:8,oct:9,nov:10,dic:11};
+
+// Fechas de agreement_report.xlsx vienen como texto "25/may/2026" — fmtDate()
+// no cubre este formato (espera serial/Date/"M/D/YYYY"), de ahí este parser propio.
+function parseAgreementDate(str) {
+  const t = s(str);
+  if (!t || t === '-') return null;
+  const m = t.match(/^(\d{1,2})\/([a-zé]{3})\/(\d{4})$/i);
+  if (!m) return null;
+  const mes = MESES_ABR[m[2].toLowerCase()];
+  if (mes == null) return null;
+  return new Date(Date.UTC(+m[3], mes, +m[1]));
+}
+
+// "Nueva Fecha de Vencimiento" manda si trae un valor real; si no, se usa la original.
+function acdEffectiveDate(rec) {
+  return parseAgreementDate(rec.fechaNuevaStr) || parseAgreementDate(rec.fechaVenceStr);
+}
+
+function computeAcdEstado(rec) {
+  const raw = s(rec.estadoRaw).toLowerCase();
+  if (raw === 'cumplidos') return 'Cumplido';
+  if (raw === 'cancelados') return 'Eliminado';
+  const d = acdEffectiveDate(rec);
+  const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+  if (d && d < today) return 'Retrasado';
+  return 'En proceso';
+}
+
+function parseAgreementsSheet(ws) {
+  const rows = sheetToArr(ws);
+  const hIdx = rows.findIndex(r => r.some(c => s(c) === 'Descripción del acuerdo'));
+  if (hIdx < 0) return [];
+  const hdr = rows[hIdx].map(h => s(h));
+  const iProy    = hdr.indexOf('Proyecto');
+  const iNombre  = hdr.indexOf('Nombre del Proyecto');
+  const iEstado  = hdr.indexOf('Estado');
+  const iAcuerdo = hdr.indexOf('Descripción del acuerdo');
+  const iFecha   = hdr.indexOf('Fecha de Vencimiento');
+  const iResp    = hdr.indexOf('Responsable');
+  const iComent  = hdr.indexOf('Último comentario ingresado');
+  const iFNueva  = hdr.indexOf('Nueva Fecha de Vencimiento');
+  if (iProy < 0 || iAcuerdo < 0) return [];
+
+  const out = [];
+  for (let i = hIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    const proyecto = s(row[iProy]);
+    if (!proyecto || proyecto === '-') break; // fin de datos, empieza el bloque de totales
+    const rec = {
+      programa: proyecto + (iNombre >= 0 && s(row[iNombre]) ? ': ' + s(row[iNombre]) : ''),
+      acuerdo: iAcuerdo >= 0 ? s(row[iAcuerdo]) : '',
+      estadoRaw: iEstado >= 0 ? s(row[iEstado]) : '',
+      fechaVenceStr: iFecha >= 0 ? s(row[iFecha]) : '',
+      fechaNuevaStr: iFNueva >= 0 ? s(row[iFNueva]) : '',
+      responsable: iResp >= 0 ? s(row[iResp]) : '',
+      comentario: iComent >= 0 ? s(row[iComent]) : '',
+    };
+    rec.estado = computeAcdEstado(rec);
+    out.push(rec);
+  }
+  return out;
+}
+
+async function loadAgreementsData(useCacheOnly) {
+  let bytes = null;
+
+  if (!useCacheOnly) {
+    try {
+      const res = await fetch(AGREEMENTS_URL + '?t=' + Date.now());
+      if (res.ok) {
+        bytes = new Uint8Array(await res.arrayBuffer());
+        await saveToCacheKey(AGREEMENTS_CACHE_KEY, bytes, Date.now());
+      } else {
+        console.warn('agreement_report.xlsx no disponible (HTTP ' + res.status + ')');
+      }
+    } catch (e) {
+      console.warn('Error cargando agreement_report.xlsx:', e);
+    }
+  }
+  if (!bytes) {
+    const cached = await getFromCacheKey(AGREEMENTS_CACHE_KEY);
+    if (cached && cached.data) bytes = cached.data;
+  }
+  if (!bytes) return [];
+
+  try {
+    const awb = XLSX.read(bytes, { type: 'array', cellDates: true });
+    return parseAgreementsSheet(awb.Sheets[awb.SheetNames[0]]);
+  } catch (e) {
+    console.warn('Error parseando agreement_report.xlsx:', e);
+    return [];
+  }
+}
+
 // ── Iniciar carga al abrir la pagina ──
 fetchExcel(false);
 
@@ -933,6 +1079,7 @@ function renderAll(wb, csvText) {
   renderDocumentos(wb);
   renderChangelog(wb);
   renderResumen(wb, csvText || '');
+  renderAcuerdos();
 }
 
 function renderClausulasV(wb, csvText) {
@@ -2079,6 +2226,189 @@ function renderResumen(wb, csvText) {
   } else {
     tAlert.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);font-family:var(--mono);font-size:12px;padding:20px">Sin datos de cláusulas disponibles</td></tr>`;
   }
+}
+
+// ── Tab Acuerdos (agreement_report.xlsx) ──
+const ACD_ESTADO_COLOR_DARK = { "Cumplido": "var(--green)", "En proceso": "var(--yellow)", "Retrasado": "var(--red)", "Eliminado": "var(--accent)" };
+const ACD_ESTADO_COLOR_HEX  = { "Cumplido": "#10b981", "En proceso": "#f59e0b", "Retrasado": "#ef4444", "Eliminado": "#00d4ff" };
+const ACD_ESTADOS_ORDEN = ["Cumplido", "En proceso", "Retrasado", "Eliminado"];
+
+let _acdActiveOp = null;
+
+function acdShortOpLabel(full) {
+  const m = full.match(/^(CR-[A-Z0-9]+)[:\s]/);
+  return m ? m[1] : full.slice(0, 10);
+}
+
+function acdEstadoPill(estado) {
+  const e = s(estado).toLowerCase();
+  if (e === 'cumplido')   return '<span class="pill pill-green">Cumplido</span>';
+  if (e === 'en proceso') return '<span class="pill pill-yellow">En proceso</span>';
+  if (e === 'retrasado')  return '<span class="pill pill-red">Retrasado</span>';
+  return '<span class="pill pill-blue">' + (estado || '—') + '</span>';
+}
+
+function buildAcdProgramStats(records) {
+  const map = new Map();
+  records.forEach(r => {
+    if (!map.has(r.programa)) map.set(r.programa, {});
+    const b = map.get(r.programa);
+    b[r.estado] = (b[r.estado] || 0) + 1;
+  });
+  const rows = Array.from(map.entries()).map(([programa, estados]) => {
+    const total = Object.values(estados).reduce((a, b) => a + b, 0);
+    return { programa, estados, total };
+  });
+  rows.sort((a, b) => b.total - a.total);
+  return rows;
+}
+
+function buildAcdEstadoStats(records) {
+  const map = new Map();
+  records.forEach(r => map.set(r.estado, (map.get(r.estado) || 0) + 1));
+  return Array.from(map.entries()).map(([estado, value]) => ({ estado, value }));
+}
+
+function renderAcdBarChart() {
+  const chartData = buildAcdProgramStats(_acdData);
+  const width = 560, height = 240, padL = 28, padB = 58, padT = 16, padR = 8;
+  const plotW = width - padL - padR, plotH = height - padT - padB;
+  const maxTotal = Math.max(1, ...chartData.map(d => d.total));
+  const n = chartData.length || 1, gap = 0.34;
+  const barW = plotW / n * (1 - gap), step = plotW / n;
+  let svg = `<svg viewBox="0 0 ${width} ${height}" style="width:100%;height:auto;font-family:var(--mono);">`;
+  for (let t = 0; t <= 4; t++) {
+    const val = Math.round(maxTotal * t / 4);
+    const y = padT + plotH - (val / maxTotal) * plotH;
+    svg += `<line x1="${padL}" y1="${y}" x2="${width - padR}" y2="${y}" stroke="#1f2d45" stroke-width="1"/>`;
+    svg += `<text x="${padL - 6}" y="${y + 3}" font-size="9" fill="#64748b" text-anchor="end">${val}</text>`;
+  }
+  chartData.forEach((d, i) => {
+    const x = padL + i * step + (step - barW) / 2;
+    let yCursor = padT + plotH;
+    ACD_ESTADOS_ORDEN.forEach(estado => {
+      const val = d.estados[estado] || 0;
+      if (val <= 0) return;
+      const h = (val / maxTotal) * plotH, y = yCursor - h;
+      svg += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" fill="${ACD_ESTADO_COLOR_HEX[estado]}" rx="2" data-op="${encodeURIComponent(d.programa)}" style="cursor:pointer;opacity:.92;"><title>${estado}: ${val}</title></rect>`;
+      yCursor -= h;
+    });
+    svg += `<text x="${(x + barW / 2).toFixed(1)}" y="${(padT + plotH - ((d.total / maxTotal) * plotH)) - 6}" font-size="10" font-weight="700" fill="#e2e8f0" text-anchor="middle">${d.total}</text>`;
+    svg += `<text x="${(x + barW / 2).toFixed(1)}" y="${height - padB + 14}" font-size="9" fill="#64748b" text-anchor="middle">${acdShortOpLabel(d.programa)}</text>`;
+  });
+  svg += `</svg>`;
+  const holder = document.getElementById('acd-bar-holder');
+  holder.innerHTML = svg;
+  holder.querySelectorAll('[data-op]').forEach(el => {
+    el.addEventListener('click', () => {
+      const op = decodeURIComponent(el.getAttribute('data-op'));
+      const btn = document.querySelector(`#acd-filter-ops .filter-op-btn[data-op="${CSS.escape(op)}"]`);
+      if (btn) selectAcdOp(btn, op);
+    });
+  });
+}
+
+function renderAcdDonut() {
+  const estadoStats = buildAcdEstadoStats(_acdData);
+  const total = _acdData.length || 1;
+  const size = 150, r = size * 0.34, cx = size / 2, cy = size / 2, sw = size * 0.17;
+  const circumference = 2 * Math.PI * r;
+  let offset = 0;
+  let svg = `<svg viewBox="0 0 ${size} ${size}" style="width:100%;max-width:${size}px;display:block;margin:4px auto 0;">`;
+  estadoStats.forEach(e => {
+    const frac = e.value / total, dash = frac * circumference;
+    svg += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${ACD_ESTADO_COLOR_HEX[e.estado] || '#64748b'}" stroke-width="${sw}" stroke-dasharray="${dash.toFixed(2)} ${(circumference - dash).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"><title>${e.estado}: ${e.value} (${(frac * 100).toFixed(1)}%)</title></circle>`;
+    offset += dash;
+  });
+  svg += `<text x="${cx}" y="${cy - 2}" text-anchor="middle" font-family="var(--mono)" font-size="20" font-weight="700" fill="#e2e8f0">${_acdData.length}</text>`;
+  svg += `<text x="${cx}" y="${cy + 14}" text-anchor="middle" font-family="var(--mono)" font-size="8" fill="#64748b">ACUERDOS</text>`;
+  svg += `</svg>`;
+  document.getElementById('acd-donut-holder').innerHTML = svg;
+  document.getElementById('acd-donut-legend').innerHTML = estadoStats.map(e =>
+    `<span><span class="acd-legend-dot" style="background:${ACD_ESTADO_COLOR_HEX[e.estado] || '#64748b'}"></span>${e.estado} · ${((e.value / total) * 100).toFixed(0)}%</span>`
+  ).join('');
+}
+
+function selectAcdOp(btn, op) {
+  const allBtns = document.querySelectorAll('#acd-filter-ops .filter-op-btn');
+  if (_acdActiveOp === op) {
+    _acdActiveOp = null;
+    allBtns.forEach(b => b.classList.add('active'));
+  } else {
+    _acdActiveOp = op;
+    allBtns.forEach(b => b.classList.toggle('active', b.dataset.op === op));
+  }
+  renderAcdTable();
+}
+
+function resetAcdFilter() {
+  _acdActiveOp = null;
+  document.querySelectorAll('#acd-filter-ops .filter-op-btn').forEach(b => b.classList.add('active'));
+  renderAcdTable();
+}
+
+function renderAcdTable() {
+  const tbody = document.getElementById('t-acuerdos');
+  const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+  const rows = _acdActiveOp ? _acdData.filter(r => r.programa === _acdActiveOp) : _acdData;
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);font-family:var(--mono);font-size:12px;padding:20px">Sin acuerdos</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    let diasHtml = '—', fechaStr = '—';
+    const d = acdEffectiveDate(r);
+    if (d) {
+      fechaStr = d.toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
+      const dias = Math.round((d - today) / 86400000);
+      const color = dias < 0 ? 'var(--red)' : (dias <= 30 ? 'var(--yellow)' : 'var(--muted)');
+      diasHtml = `<div class="days-bar"><div class="bar" style="width:${Math.max(8, Math.min(60, Math.abs(dias)))}px;background:${color}"></div><span class="days-num" style="color:${color}">${dias < 0 ? 'venció hace ' + Math.abs(dias) + 'd' : dias + 'd'}</span></div>`;
+    }
+    return `<tr>
+      <td class="mono" style="max-width:160px;">${r.programa.length > 28 ? r.programa.slice(0, 28) + '…' : r.programa}</td>
+      <td style="max-width:340px;">${r.acuerdo}</td>
+      <td class="mono">${fechaStr}</td>
+      <td>${diasHtml}</td>
+      <td>${acdEstadoPill(r.estado)}</td>
+      <td class="mono" style="font-size:11px;">${r.responsable || '—'}</td>
+      <td style="max-width:220px;color:var(--muted);font-size:12px;">${r.comentario || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderAcuerdos() {
+  const total = _acdData.length;
+  const cCumplido  = _acdData.filter(r => r.estado === 'Cumplido').length;
+  const cProceso   = _acdData.filter(r => r.estado === 'En proceso').length;
+  const cRetraso   = _acdData.filter(r => r.estado === 'Retrasado').length;
+  const cEliminado = _acdData.filter(r => r.estado === 'Eliminado').length;
+  const pct = n => total ? `${(n / total * 100).toFixed(1)}% del total` : '';
+  document.getElementById('acd-total').textContent = total;
+  document.getElementById('acd-cumplido').textContent = cCumplido;
+  document.getElementById('acd-cumplido-pct').textContent = pct(cCumplido);
+  document.getElementById('acd-proceso').textContent = cProceso;
+  document.getElementById('acd-proceso-pct').textContent = pct(cProceso);
+  document.getElementById('acd-retrasado').textContent = cRetraso;
+  document.getElementById('acd-retrasado-pct').textContent = pct(cRetraso);
+  document.getElementById('acd-eliminado-pct').textContent = cEliminado ? `RGC vigente · ${cEliminado} eliminado(s)` : 'RGC vigente';
+  document.getElementById('badge-acd').textContent = String(cRetraso || 0);
+
+  renderAcdBarChart();
+  renderAcdDonut();
+
+  const ops = [...new Set(_acdData.map(r => r.programa))];
+  const filterDiv = document.getElementById('acd-filter-ops');
+  filterDiv.innerHTML = '';
+  ops.forEach(op => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-op-btn active';
+    btn.textContent = op.length > 40 ? op.slice(0, 40) + '…' : op;
+    btn.title = op;
+    btn.dataset.op = op;
+    btn.onclick = () => selectAcdOp(btn, op);
+    filterDiv.appendChild(btn);
+  });
+  renderAcdTable();
 }
 </script>
 <div id="prod-popup-overlay" onclick="if(event.target===this)closeProdPopup()">
