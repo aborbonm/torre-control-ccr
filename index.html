@@ -268,7 +268,7 @@
   <div class="tab" onclick="showTab('equipo',this)">Equipo</div>
   <div class="tab" onclick="showTab('documentos',this)">Documentos</div>
   <div class="tab" onclick="showTab('pmr',this)">PMR</div>
-  <div class="tab" onclick="showTab('acuerdos',this)">Acuerdos <span class="badge badge-yellow" id="badge-acd">—</span></div>
+  <div class="tab" onclick="showTab('acuerdos',this)">Acuerdos <span class="badge badge-red" id="badge-acd">—</span></div>
   <div class="tab" onclick="showTab('changelog',this)">Change Log <span class="badge badge-blue" id="badge-cl">—</span></div>
 </nav>
 
@@ -400,7 +400,7 @@
 
     <div class="section-head"><h2>Seguimiento de acuerdos</h2></div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Operación</th><th>Acuerdo</th><th>Fecha vencimiento</th><th>Días</th><th>Estado</th><th>Responsable</th><th>Comentario</th></tr></thead>
+      <thead><tr><th>Operación</th><th>Acuerdo</th><th>Fecha vencimiento</th><th onclick="toggleAcdSort()" style="cursor:pointer;user-select:none;">Días <span id="acd-sort-icon">↕</span></th><th>Estado</th><th>Responsable</th><th>Comentario</th></tr></thead>
       <tbody id="t-acuerdos"></tbody>
     </table></div>
   </div>
@@ -2234,6 +2234,13 @@ const ACD_ESTADO_COLOR_HEX  = { "Cumplido": "#10b981", "En proceso": "#f59e0b", 
 const ACD_ESTADOS_ORDEN = ["Cumplido", "En proceso", "Retrasado", "Eliminado"];
 
 let _acdActiveOp = null;
+let _acdSortDir = null; // null | 'asc' | 'desc' — orden por fecha de vencimiento efectiva
+
+function toggleAcdSort() {
+  _acdSortDir = _acdSortDir === null ? 'asc' : _acdSortDir === 'asc' ? 'desc' : null;
+  document.getElementById('acd-sort-icon').textContent = _acdSortDir === 'asc' ? '↑' : _acdSortDir === 'desc' ? '↓' : '↕';
+  renderAcdTable();
+}
 
 function acdShortOpLabel(full) {
   const m = full.match(/^(CR-[A-Z0-9]+)[:\s]/);
@@ -2350,7 +2357,16 @@ function resetAcdFilter() {
 function renderAcdTable() {
   const tbody = document.getElementById('t-acuerdos');
   const today = new Date(); today.setUTCHours(0, 0, 0, 0);
-  const rows = _acdActiveOp ? _acdData.filter(r => r.programa === _acdActiveOp) : _acdData;
+  let rows = _acdActiveOp ? _acdData.filter(r => r.programa === _acdActiveOp) : _acdData.slice();
+  if (_acdSortDir) {
+    rows = rows.slice().sort((a, b) => {
+      const da = acdEffectiveDate(a), db = acdEffectiveDate(b);
+      if (!da && !db) return 0;
+      if (!da) return 1;
+      if (!db) return -1;
+      return _acdSortDir === 'asc' ? da - db : db - da;
+    });
+  }
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);font-family:var(--mono);font-size:12px;padding:20px">Sin acuerdos</td></tr>';
     return;
@@ -2361,7 +2377,10 @@ function renderAcdTable() {
     if (d) {
       fechaStr = d.toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
       const dias = Math.round((d - today) / 86400000);
-      const color = dias < 0 ? 'var(--red)' : (dias <= 30 ? 'var(--yellow)' : 'var(--muted)');
+      let color;
+      if (r.estado === 'Retrasado') color = 'var(--red)';
+      else if (r.estado === 'En proceso' && dias >= 0 && dias <= 30) color = 'var(--yellow)';
+      else color = 'var(--muted)'; // Cumplido, Eliminado, o En proceso lejano
       diasHtml = `<div class="days-bar"><div class="bar" style="width:${Math.max(8, Math.min(60, Math.abs(dias)))}px;background:${color}"></div><span class="days-num" style="color:${color}">${dias < 0 ? 'venció hace ' + Math.abs(dias) + 'd' : dias + 'd'}</span></div>`;
     }
     return `<tr>
