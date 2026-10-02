@@ -26,14 +26,22 @@ El dashboard lee sus datos al cargarse:
   datos, pero el resto del dashboard sigue funcionando igual. Ver
   [Acuerdos de Revisión de Cartera](#acuerdos-de-revisión-de-cartera).
 
-Los archivos se leen directamente desde este repositorio usando la API de GitHub.
-No se requiere instalación ni configuración — basta con abrir el link.
-
-Los archivos terminados en `- Copy` son respaldos de la última versión estable.
+Los archivos se leen directamente desde la rama `main` de este repositorio
+(`raw.githubusercontent.com`). No se requiere instalación ni configuración —
+basta con abrir el link. Solo `torre_de_control_CCR.xlsx` es obligatorio: si no
+se puede cargar (y no hay caché), la app muestra una pantalla de error; si falta
+cualquiera de los demás archivos, solo queda vacío el tab correspondiente.
 
 Los datos se guardan en caché local (IndexedDB) para que la página cargue
 instantáneamente. Al abrir la app, se muestra la versión en caché y se actualiza
-en segundo plano. El botón **Actualizar Datos** fuerza una recarga inmediata.
+en segundo plano. En el encabezado:
+
+- **Rev: \<fecha\>** — fecha del último commit de `index.html` (versión de la app).
+- **Datos: \<fecha\>** — fecha del último commit de `torre_de_control_CCR.xlsx`.
+  Ambas fechas se consultan con la API de GitHub; si la consulta falla, se usa la
+  última fecha guardada en caché.
+- **Actualizar Datos** — fuerza una recarga inmediata de todos los archivos.
+- **Limpiar cache** — borra la caché local (aparece cuando hay datos en caché).
 
 ## Cómo actualizar los datos
 
@@ -42,6 +50,12 @@ en segundo plano. El botón **Actualizar Datos** fuerza una recarga inmediata.
 La información se actualiza directamente en el archivo Excel. Reglas importantes:
 - No cambiar el nombre de las hojas
 - No cambiar el orden ni el nombre de las columnas
+- En la hoja `productos criticos`, la columna `Estado` debe ser uno de:
+  `Logrado`, `En tiempo`, `Retrasado` o `Pausado`
+- En la hoja `resultados`, la columna `Probabilidad_Logro` debe ser `Alta`,
+  `Media` o `Baja`
+- Los enlaces de la hoja `documentos` se toman del **texto** de la columna `URL`
+  (no de hipervínculos insertados en la celda)
 - La hoja `comentarios_clausulas` permite registrar comentarios sobre cláusulas
   vencidas (ver sección abajo)
 
@@ -188,7 +202,10 @@ hoja de `torre_de_control_CCR.xlsx`.
 
 El archivo tiene una sola hoja, con columnas (entre otras que el dashboard
 ignora): `Proyecto | Nombre del Proyecto | Estado | Descripción del acuerdo |
-Fecha de Vencimiento | Responsable | Nueva Fecha de Vencimiento`.
+Fecha de Vencimiento | Responsable | Último comentario ingresado | Nueva Fecha de Vencimiento`.
+El dashboard ubica la fila de encabezados buscando la celda `Descripción del
+acuerdo` y lee las filas siguientes hasta la primera fila sin `Proyecto` (donde
+empieza el bloque de totales).
 
 El dashboard **no usa los totales del pie del reporte** ("Total acuerdos:
 ...") — carga todas las filas de datos y calcula sus propios conteos. Tampoco
@@ -206,6 +223,14 @@ tiene un valor real (no vacío ni `-`); si no, es `Fecha de Vencimiento`. Por
 esto, un acuerdo puede aparecer como "Retrasado" en el dashboard aunque el
 Excel diga `Vigente` — el reporte del BID no recalcula ese estado
 automáticamente cuando pasa la fecha.
+
+En la tabla **Seguimiento de acuerdos**, la columna **Días** muestra los días
+que faltan para la fecha efectiva (o "venció hace Nd"), en rojo si está
+retrasado y en amarillo si está en proceso y vence en ≤30 días. Al hacer clic
+en el encabezado **Días** la tabla se ordena por fecha (ascendente /
+descendente). La columna **Comentario** muestra el `Último comentario
+ingresado` del reporte. El badge rojo del tab indica la cantidad de acuerdos
+retrasados.
 
 ### Cómo actualizar los acuerdos
 
@@ -239,15 +264,15 @@ El dashboard mostrará el comentario más reciente por cláusula en el tab **Cl�
 
 | Tab | Fuente | Descripción |
 |-----|--------|-------------|
-| Resumen | xlsx + csv | KPIs generales: cláusulas vencidas, próximas, productos retrasados, operaciones activas. Tabla de estado por operación y alertas de vencimiento próximo (≤30 días) |
-| Cláusulas | csv + xlsx | Dos secciones: **Vencidas** (con comentarios) y **Próximos 180 días** con barra de urgencia |
-| Resultados | xlsx + raw data | Indicadores de la Matriz de Resultados agrupados por operación y objetivo, con probabilidad Alta/Media/Baja. Los chips de producto crítico muestran su(s) adquisición(es) crítica(s) al hacer clic (ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)) |
-| Productos Críticos | xlsx + raw data | Estado de productos con filtro por operación (Logrado / En tiempo / Retrasado). Cada producto muestra el nombre de su(s) adquisición(es) crítica(s) como chip clicable, con detalle de ID de proceso, monto, estado y método |
-| Equipo | xlsx | Composición del equipo por operación con alerta de roles faltantes |
-| Documentos | xlsx | Matriz de documentos clave con enlaces a SharePoint por tipo y operación (p. ej. Firma autorizada, PP, LC, ROP, PEP, Provisionamiento Portal del Cliente, entre otros) |
-| PMR | PMR_Historico | Calificaciones e indicadores técnicos del ciclo PMR vigente por programa. Las tarjetas son clicables y muestran la tabla de ciclos anteriores; las que tienen el histórico desactualizado respecto al ciclo vigente muestran una advertencia (ver [Datos de PMR por operación](#datos-de-pmr-por-operación)) |
-| Acuerdos | agreement_report | Acuerdos de Revisión de Cartera por operación, con estado calculado (Cumplido / En proceso / Retrasado / Eliminado), gráfico por operación, distribución por estado y filtro por operación (ver [Acuerdos de Revisión de Cartera](#acuerdos-de-revisión-de-cartera)) |
-| Change Log | xlsx | Historial de cambios registrados en el Excel (más reciente primero) |
+| Resumen | xlsx + csv | KPIs generales: cláusulas vencidas, cláusulas que vencen en 180 días, productos críticos retrasados y operaciones activas (las que tienen productos críticos). Tabla de estado de productos por operación (Logrado / En tiempo / Retrasado / Pausado) y alertas de cláusulas que vencen en ≤30 días, etiquetadas como Crítico (≤7 días), Urgente (≤15) o Próximo |
+| Cláusulas | csv + xlsx | Dos secciones: **Vencidas** (con el comentario más reciente de `comentarios_clausulas`) y **Próximas a vencer (180 días)** con barra de urgencia. Solo considera cláusulas de préstamos de inversión (`INV`) en estado `TRACK`. Los badges del tab muestran ambos conteos |
+| Resultados | xlsx + raw data | Indicadores de la Matriz de Resultados agrupados por operación y objetivo, con probabilidad Alta/Media/Baja (tarjetas con conteo y porcentaje del total) y filtro por operación. Los chips de producto crítico se colorean según su estado y, al hacer clic, muestran su(s) adquisición(es) crítica(s) (ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)) |
+| Productos Críticos | xlsx + raw data | Tarjetas con conteo y porcentaje de productos Logrados / En tiempo / Retrasados / Pausados, filtro por operación y tabla de productos. Cada producto muestra el nombre de su(s) adquisición(es) crítica(s) como chip clicable, con detalle de ID de proceso, monto, estado y método |
+| Equipo | xlsx | Composición del equipo por operación con alerta de roles faltantes. Roles requeridos: Jefe de Equipo, Jefe de Equipo alterno, Abogado, Esp. Adquisiciones, Esp. Financiera, Apoyo Fiduciario, Equipo ESG y 2 Analistas |
+| Documentos | xlsx | Tarjeta por operación con íconos por tipo de documento que enlazan a SharePoint/EZShare (Firma autorizada, PP, POD, LP, LP — Modification, LC, LC — Loan modification, ROP, PF, Ratificación AL, Policy waivers, PEP, Provisionamiento Portal del Cliente). Tipos no reconocidos se muestran con ícono genérico; los documentos sin URL aparecen como "Sin enlace" |
+| PMR | PMR_Historico | Calificaciones (Satisfactorio / Alerta / Problema / Sin calificación) e indicadores técnicos (Desemb., SPI, SPI(a), CPI, CPI(a), Meses 95%, Etapa) del ciclo PMR vigente por programa. Si la clasificación validada difiere de la calculada, la tarjeta muestra ambas con la marca "Ajustada por la COF". Las tarjetas son clicables y muestran la tabla de ciclos anteriores; las que tienen el histórico desactualizado respecto al ciclo vigente muestran una advertencia (ver [Datos de PMR por operación](#datos-de-pmr-por-operación)) |
+| Acuerdos | agreement_report | Acuerdos de Revisión de Cartera por operación, con estado calculado (Cumplido / En proceso / Retrasado / Eliminado), tarjetas con conteo y porcentaje, gráfico por operación, distribución por estado, filtro por operación y tabla ordenable por fecha (ver [Acuerdos de Revisión de Cartera](#acuerdos-de-revisión-de-cartera)) |
+| Change Log | xlsx | Historial de cambios registrados en la hoja `change log` (fecha, tab, operación y acción; más reciente primero) |
 
 ## Estructura del repositorio
 
@@ -260,24 +285,27 @@ El dashboard mostrará el comentario más reciente por cláusula en el tab **Cl�
 | `PMR_Historico.xlsx` | Fuente única del tab PMR: calificaciones, indicadores y ciclos históricos, una hoja por operación (ver [Datos de PMR por operación](#datos-de-pmr-por-operación)) |
 | `agreement_report.xlsx` | Fuente única del tab Acuerdos: acuerdos de Revisión de Cartera por operación (ver [Acuerdos de Revisión de Cartera](#acuerdos-de-revisión-de-cartera)) |
 | `README.md` | Este archivo |
+| `Manual Torre de Control - CCR.docx` | Versión en Word de este README para quienes actualizan los datos desde la carpeta compartida (debe regenerarse cada vez que cambie el README) |
+| `CLAUDE.md` | Instrucciones del proyecto para Claude Code |
 
 ### Hojas del Excel
 
 | Hoja | Contenido |
 |------|-----------|
-| `productos criticos` | Estado de productos por operación |
+| `productos criticos` | Estado de productos por operación (`Operacion`, `Producto Crítico`, `Estado`, `Adquisición Crítica`, `Riesgos/Comentarios`) |
 | `productos_adquisiciones` | Relación producto crítico ↔ ID de proceso de adquisición, con marca de criticidad y riesgo |
-| `equipo` | Roles y personas asignadas por operación |
-| `documentos` | Matriz de documentos con links a SharePoint (p. ej. Firma autorizada, PP, LC, ROP, PEP, Provisionamiento Portal del Cliente, entre otros) |
+| `equipo` | Roles (filas) y personas asignadas por operación (una columna por operación) |
+| `documentos` | Matriz de documentos (`Operación`, `Tipo de Documento`, `Nombre / ID`, `URL`) con links a SharePoint (p. ej. Firma autorizada, PP, LC, ROP, PEP, Provisionamiento Portal del Cliente, entre otros) |
 | `datos_ops` | Catálogo de operaciones (código, préstamo y nombre) |
-| `resultados` | Indicadores de la Matriz de Resultados |
-| `productos_resultados` | Relación indicador ↔ producto |
+| `resultados` | Indicadores de la Matriz de Resultados (`Operacion`, `Objetivo_ID`, `Objetivo_Descripcion`, `Indicador_ID`, `Indicador_Descripcion`, `Linea_Base`, `Meta`, `Probabilidad_Logro`) |
+| `productos_resultados` | Relación indicador ↔ producto (`Operacion`, `Indicador_ID`, `Producto_Critico`) |
 | `comentarios_clausulas` | Comentarios asociados a cláusulas vencidas |
-| `change log` | Historial de cambios |
+| `change log` | Historial de cambios (`Fecha de revisión`, `Tab de la torre`, `Operación`, `acción lograda`) |
 
 ## Stack tecnológico
 
 - HTML5 + JavaScript (ES6+), sin framework ni servidor
 - [SheetJS v0.18.5](https://sheetjs.com/) — lectura de Excel en el navegador
-- IndexedDB — caché local de datos (Excel principal, CSV y raw data por operación)
+- IndexedDB — caché local de datos (Excel principal, CSV, raw data por operación,
+  `PMR_Historico.xlsx`, `agreement_report.xlsx` y fechas de última modificación)
 - GitHub Pages — hosting estático
