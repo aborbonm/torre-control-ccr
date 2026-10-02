@@ -298,6 +298,12 @@
   </div>
 
   <div id="clausulas-v" class="panel">
+    <!-- Filtro por operación (programa) -->
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;align-items:center;">
+      <span style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);">Operación:</span>
+      <div id="cl-filter-ops" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+      <button onclick="resetClFilter()" style="font-family:var(--mono);font-size:11px;background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:100px;cursor:pointer;margin-left:8px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">↺ Todas</button>
+    </div>
     <div class="section-head"><h2>Cláusulas vencidas</h2></div>
     <div class="table-wrap"><table>
       <thead><tr><th>Clause ID</th><th>N° Cláusula</th><th>Programa</th><th>Operación</th><th>Tipo</th><th>Descripción</th><th>Vencimiento</th><th>Comentario</th></tr></thead>
@@ -1052,6 +1058,7 @@ function renderAll(wb, csvText) {
   renderPMR(wb);
   renderClausulasV(wb, csvText || '');
   renderClausulas180CSV(csvText || '');
+  renderClFilter();
   renderProductos(wb);
   renderEquipo(wb);
   renderDocumentos(wb);
@@ -1155,7 +1162,7 @@ function renderClausulasV(wb, csvText) {
       if (cm.fechaCompStr) meta.push(`<span style="color:var(--muted);font-size:11px">Compromiso: ${cm.fechaCompStr}</span>`);
       comentCell = `<div style="min-width:160px">${estadoBadge}<span style="font-size:12px;line-height:1.5">${cm.comentario}</span>${meta.length ? '<br>' + meta.join(' · ') : ''}</div>`;
     }
-    tbody.innerHTML += `<tr>
+    tbody.innerHTML += `<tr data-op="${r['Operation_Number1']}">
       <td class="mono">${r['Clause_ID']}</td>
       <td class="mono">${r['Clause_Number']}</td>
       <td class="mono">${r['Operation_Number1']}</td>
@@ -1258,7 +1265,7 @@ function renderClausulas180CSV(csvText) {
     const dias = d ? Math.ceil((d - today) / 86400000) : 0;
     const color = dias <= 30 ? 'var(--red)' : dias <= 90 ? 'var(--yellow)' : 'var(--green)';
     const bw = Math.max(8, Math.min(110, dias * 0.62));
-    tbody.innerHTML += `<tr>
+    tbody.innerHTML += `<tr data-op="${r['Operation_Number1']}">
       <td class="mono">${r['Clause_ID']}</td>
       <td class="mono">${r['Clause_Number']}</td>
       <td class="mono">${r['Operation_Number1']}</td>
@@ -1272,6 +1279,73 @@ function renderClausulas180CSV(csvText) {
 
   document.getElementById('s-180').textContent = data.length;
   document.getElementById('badge-180').textContent = data.length;
+}
+
+// ── Cláusulas: filtro por operación (programa) sobre ambas tablas ──
+// Los KPIs y badges siguen mostrando los totales; el filtro solo oculta filas.
+let _clActiveOp = null;
+const CL_TBODIES = ['t-clausulas-v', 't-clausulas-180'];
+
+function renderClFilter() {
+  const ops = [];
+  CL_TBODIES.forEach(id => document.querySelectorAll('#' + id + ' tr[data-op]').forEach(tr => {
+    const op = tr.dataset.op;
+    if (op && !ops.includes(op)) ops.push(op);
+  }));
+  _clActiveOp = null;
+  const filterDiv = document.getElementById('cl-filter-ops');
+  filterDiv.innerHTML = '';
+  ops.sort().forEach(op => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-op-btn active';
+    btn.textContent = op;
+    btn.dataset.op = op;
+    btn.onclick = () => selectClOp(btn, op);
+    filterDiv.appendChild(btn);
+  });
+  applyClFiltro();
+}
+
+function selectClOp(btn, op) {
+  const allBtns = document.querySelectorAll('#cl-filter-ops .filter-op-btn');
+  if (_clActiveOp === op) {
+    _clActiveOp = null;
+    allBtns.forEach(b => b.classList.add('active'));
+  } else {
+    _clActiveOp = op;
+    allBtns.forEach(b => b.classList.toggle('active', b.dataset.op === op));
+  }
+  applyClFiltro();
+}
+
+function resetClFilter() {
+  _clActiveOp = null;
+  document.querySelectorAll('#cl-filter-ops .filter-op-btn').forEach(b => b.classList.add('active'));
+  applyClFiltro();
+}
+
+function applyClFiltro() {
+  CL_TBODIES.forEach(id => {
+    const tbody = document.getElementById(id);
+    let visibles = 0;
+    tbody.querySelectorAll('tr[data-op]').forEach(tr => {
+      const show = !_clActiveOp || tr.dataset.op === _clActiveOp;
+      tr.style.display = show ? '' : 'none';
+      if (show) visibles++;
+    });
+    let empty = tbody.querySelector('tr.cl-empty');
+    if (!visibles) {
+      if (!empty) {
+        empty = document.createElement('tr');
+        empty.className = 'cl-empty';
+        empty.innerHTML = '<td colspan="8" style="text-align:center;color:var(--muted);font-family:var(--mono);font-size:12px;padding:20px"></td>';
+        tbody.appendChild(empty);
+      }
+      empty.firstChild.textContent = _clActiveOp ? 'Sin cláusulas para ' + _clActiveOp : 'Sin cláusulas';
+    } else if (empty) {
+      empty.remove();
+    }
+  });
 }
 
 // ── Productos: datos globales y filtro por operación ──
