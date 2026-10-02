@@ -69,6 +69,11 @@
   .section-head::after{content:'';flex:1;height:1px;background:var(--border);}
 
   .table-wrap{border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px;overflow-x:auto;}
+  .stat-row-5{grid-template-columns:repeat(5,1fr);}
+  .table-wrap.has-foot{margin-bottom:8px;}
+  .section-foot{display:flex;justify-content:flex-end;margin-bottom:24px;}
+  .section-foot a{font-family:var(--mono);font-size:11px;color:var(--accent);text-decoration:none;cursor:pointer;}
+  .section-foot a:hover{text-decoration:underline;}
   table{width:100%;border-collapse:collapse;}
   thead th{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);background:var(--surface2);padding:11px 14px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;}
   tbody tr{border-bottom:1px solid var(--border);transition:background .15s;}
@@ -223,7 +228,7 @@
 
   @media(max-width:900px){
     header{padding:14px 18px;}nav{padding:10px 18px 0;}main{padding:16px 18px;}
-    .stat-row{grid-template-columns:repeat(2,1fr);}
+    .stat-row,.stat-row.stat-row-5{grid-template-columns:repeat(2,1fr);}
     .acd-chart-row{grid-template-columns:1fr;}
   }
 </style>
@@ -274,16 +279,22 @@
 
 <main>
   <div id="resumen" class="panel active">
-    <div class="stat-row">
+    <div class="stat-row stat-row-5">
       <div class="stat-card red"><div class="stat-label">Cláusulas vencidas</div><div class="stat-value" id="s-cv">—</div><div class="stat-sub">Requieren atención inmediata</div></div>
       <div class="stat-card yellow"><div class="stat-label">Vencen en 180 días</div><div class="stat-value" id="s-180">—</div><div class="stat-sub">En seguimiento</div></div>
       <div class="stat-card yellow"><div class="stat-label">Productos críticos retrasados</div><div class="stat-value" id="s-ret">—</div><div class="stat-sub" id="s-ret-sub">Cargando…</div></div>
       <div class="stat-card blue"><div class="stat-label">Operaciones activas</div><div class="stat-value" id="s-ops">—</div><div class="stat-sub" id="s-ops-sub">Cargando…</div></div>
+      <div class="stat-card yellow" id="s-acd-card"><div class="stat-label">Acuerdos vencidos / por vencer</div><div class="stat-value" id="s-acd">—</div><div class="stat-sub" id="s-acd-sub">Cargando…</div></div>
     </div>
     <div class="section-head"><h2>Estado de productos críticos por operación</h2></div>
-    <div class="table-wrap"><table><thead><tr><th>Operación</th><th>Logrado</th><th>En tiempo</th><th>Retrasado</th><th>Pausado</th><th>Total</th></tr></thead><tbody id="t-resumen"></tbody></table></div>
-    <div class="section-head"><h2>Próximos vencimientos de cláusulas (≤30 días)</h2></div>
-    <div class="table-wrap"><table><thead><tr><th>Urgencia</th><th>Contrato</th><th>Descripción</th><th>Vencimiento</th><th>Días</th></tr></thead><tbody id="t-alertas"></tbody></table></div>
+    <div class="table-wrap has-foot"><table><thead><tr><th>Operación</th><th>Logrado</th><th>En tiempo</th><th>Retrasado</th><th>Pausado</th><th>Total</th></tr></thead><tbody id="t-resumen"></tbody></table></div>
+    <div class="section-foot"><a data-goto="productos" onclick="goToTab('productos')">Ver detalle en Productos Críticos →</a></div>
+    <div class="section-head"><h2>Cláusulas vencidas y próximas a vencer (≤30 días)</h2></div>
+    <div class="table-wrap has-foot"><table><thead><tr><th>Urgencia</th><th>Contrato</th><th>Descripción</th><th>Vencimiento</th><th>Días</th></tr></thead><tbody id="t-alertas"></tbody></table></div>
+    <div class="section-foot"><a data-goto="clausulas-v" onclick="goToTab('clausulas-v')">Ver todas en Cláusulas →</a></div>
+    <div class="section-head"><h2>Acuerdos vencidos y próximos a vencer (≤30 días)</h2></div>
+    <div class="table-wrap has-foot"><table><thead><tr><th>Urgencia</th><th>Operación</th><th>Acuerdo</th><th>Responsable</th><th>Vencimiento</th><th>Días</th></tr></thead><tbody id="t-acd-resumen"></tbody></table></div>
+    <div class="section-foot"><a data-goto="acuerdos" onclick="goToTab('acuerdos')">Ver todos en Acuerdos →</a></div>
   </div>
 
   <div id="clausulas-v" class="panel">
@@ -412,65 +423,32 @@
 </main>
 
 <script>
-// ── Hyperlinks embebidos (SheetJS no puede leerlos del binario xlsx) ──
-// Clave: "excelRow_excelCol" (1-indexed). Si en el futuro se agregan links al Excel,
-// se deben añadir aquí manualmente para que aparezcan en el dashboard.
-const HYPERLINKS = {
-  "5_4":"https://ezws.iadb.org/getdocument.aspx?docnum=EZIDB0000195-1292350467-247",
-  "5_5":"../../../../../teams/EZ-CR-LON/CR-L1066/_layouts/15/DocIdRedir.aspx?ID=EZIDB0000195-2089566125-407",
-  "5_6":"../../../../../teams/EZ-CR-LON/CR-L1137/35%20Financial/Actualizacion_de_firmas_registradas%20correcto%20Julio%2023.pdf",
-  "5_7":"https://ezws.iadb.org/getdocument.aspx?docnum=EZIDB0000195-597680473-211",
-  "5_8":"../../../../../teams/EZ-CR-GRF/CR-J0002/20%20Contracts%20and%20Clauses/Registro%20de%20firmas.pdf",
-  "5_9":"https://ezws.iadb.org/getdocument.aspx?docnum=EZIDB0000642-138014739-27",
-  "6_3":"../../../../../teams/EZ-CR-LON/CR-L1032/_layouts/15/DocIdRedir.aspx?ID=EZSHARE-1939367940-2198",
-  "6_5":"../../../../../teams/EZ-CR-LON/CR-L1066/_layouts/15/DocIdRedir.aspx?ID=EZSHARE-1108381426-6",
-  "6_6":"../../../../../_layouts/15/DocIdRedir.aspx?ID=EZSHARE-822257051-36",
-  "6_7":"../../../../../teams/EZ-CR-LON/CR-L1139/_layouts/15/DocIdRedir.aspx?ID=EZSHARE-1127813953-11",
-  "6_8":"../../../../../teams/ez-cr-grf/cr-j0002/_layouts/15/DocIdRedir.aspx?ID=EZSHARE-883508192-4",
-  "6_9":"../../../../../teams/ez-CR-L1151/_layouts/15/DocIdRedir.aspx?ID=EZIDB0000642-1318336402-8",
-  "7_3":"../../../../../teams/EZ-CR-LON/CR-L1032/_layouts/15/DocIdRedir.aspx?ID=EZSHARE-1939367940-2337",
-  "7_4":"../../../../../teams/EZ-CR-LON/CR-L1065/_layouts/15/DocIdRedir.aspx?ID=EZSHARE-998400382-90",
-  "7_5":"../../../../../teams/EZ-CR-LON/CR-L1066/_layouts/15/DocIdRedir.aspx?ID=EZSHARE-1108381426-13",
-  "7_6":"../../../../../_layouts/15/DocIdRedir.aspx?ID=EZSHARE-822257051-128",
-  "7_7":"../../../../../teams/EZ-CR-LON/CR-L1139/_layouts/15/DocIdRedir.aspx?ID=EZSHARE-1127813953-37",
-  "7_8":"../../../../../teams/ez-cr-grf/cr-j0002/_layouts/15/DocIdRedir.aspx?ID=EZSHARE-883508192-35",
-  "7_9":"../../../../../teams/ez-CR-L1151/_layouts/15/DocIdRedir.aspx?ID=EZIDB0000642-1318336402-80",
-  "7_11":"../../../../../teams/ez-CR-L1157/_layouts/15/DocIdRedir.aspx?ID=EZIDB0003356-1949740866-371",
-  "8_3":"../../../../../teams/EZ-CR-LON/CR-L1032/_layouts/15/DocIdRedir.aspx?ID=EZSHARE-1939367940-17",
-  "8_5":"../../../../../teams/EZ-CR-LON/CR-L1066/_layouts/15/DocIdRedir.aspx?ID=EZSHARE-1108381426-7",
-  "8_6":"../../../../../_layouts/15/DocIdRedir.aspx?ID=EZSHARE-822257051-128",
-  "8_7":"../../../../../teams/EZ-CR-LON/CR-L1139/_layouts/15/DocIdRedir.aspx?ID=EZSHARE-1127813953-40",
-  "8_8":"../../../../../teams/ez-cr-grf/cr-j0002/_layouts/15/DocIdRedir.aspx?ID=EZIDB0000191-883508192-51",
-  "8_10":"../../../../../teams/ez-CR-L1152/15%20LifeCycle%20Milestones/Costa%20Rica.%20Propuesta%20de%20prestamo%20y%20financiamiento%20no%20reembolsable%20para%20inversion%20para%20el%20proyecto%20_Mejora%20de%20la%20Calidad%20del%20Sistema%20Educativo.pdf",
-  "8_11":"../../../../../teams/ez-CR-L1157/_layouts/15/DocIdRedir.aspx?ID=EZIDB0003356-1949740866-372",
-  "9_3":"../../../../../teams/EZ-CR-LON/CR-L1032/_layouts/15/DocIdRedir.aspx?ID=EZIDB0000195-246772048-19",
-  "9_4":"../../../../../teams/EZ-CR-LON/CR-L1065/_layouts/15/DocIdRedir.aspx?ID=EZSHARE-998400382-89",
-  "9_5":"../../../../../teams/EZ-CR-LON/CR-L1066/_layouts/15/DocIdRedir.aspx?ID=EZSHARE-1108381426-8",
-  "9_6":"../../../../../_layouts/15/DocIdRedir.aspx?ID=EZSHARE-822257051-196",
-  "9_7":"../../../../../teams/EZ-CR-LON/CR-L1139/_layouts/15/DocIdRedir.aspx?ID=EZSHARE-1127813953-44",
-  "9_8":"../../../../../teams/ez-cr-grf/cr-j0002/_layouts/15/DocIdRedir.aspx?ID=EZIDB0000191-883508192-57",
-  "9_9":"../../../../../teams/ez-CR-L1151/_layouts/15/DocIdRedir.aspx?ID=EZIDB0000642-1318336402-79",
-  "9_11":"../../../../../teams/ez-CR-L1157/_layouts/15/DocIdRedir.aspx?ID=EZIDB0003356-828744887-5",
-  "10_3":"https://idbdocs.iadb.org/wsdocs/getDocument.aspx?DOCNUM=39376682",
-  "10_5":"../../../../../teams/EZ-CR-LON/CR-L1066/_layouts/15/DocIdRedir.aspx?ID=EZIDB0000195-1108381426-32",
-  "11_11":"../../../../../teams/ez-CR-L1157/_layouts/15/DocIdRedir.aspx?ID=EZIDB0003356-1949740866-374",
-  "12_3":"../../../../../teams/EZ-CR-LON/CR-L1032/_layouts/15/DocIdRedir.aspx?ID=EZIDB0000195-246772048-18",
-  "12_4":"../../../../../teams/EZ-CR-LON/CR-L1065/_layouts/15/DocIdRedir.aspx?ID=EZIDB0000195-998400382-107",
-  "12_5":"../../../../../teams/EZ-CR-LON/CR-L1066/_layouts/15/DocIdRedir.aspx?ID=EZSHARE-1108381426-21",
-  "12_6":"../../../../../_layouts/15/DocIdRedir.aspx?ID=EZIDB0000195-822257051-219",
-  "12_7":"../../../../../teams/EZ-CR-LON/CR-L1139/_layouts/15/DocIdRedir.aspx?ID=EZIDB0000195-1127813953-74",
-  "12_8":"../../../../../teams/ez-cr-grf/cr-j0002/_layouts/15/DocIdRedir.aspx?ID=EZIDB0000191-1939238704-4",
-  "12_9":"../../../../../teams/ez-CR-L1151/_layouts/15/DocIdRedir.aspx?ID=EZIDB0000642-138014739-42",
-  "13_3":"../../../../../teams/ez-CR-L1151/_layouts/15/DocIdRedir.aspx?ID=EZIDB0000642-1318336402-81",
-  "13_6":"../../../../../_layouts/15/DocIdRedir.aspx?ID=EZIDB0000195-822257051-222",
-  "13_7":"../../../../../teams/ez-CR-L1151/_layouts/15/DocIdRedir.aspx?ID=EZIDB0000642-1318336402-81",
-};
-
 function showTab(id, el) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   if (el) el.classList.add('active');
+}
+
+// Enlaces "Ver … →" del Resumen: abre el tab y lo marca activo en el nav.
+function goToTab(id) {
+  const tab = [...document.querySelectorAll('nav .tab')].find(t => (t.getAttribute('onclick') || '').includes("'" + id + "'"));
+  showTab(id, tab);
+  window.scrollTo(0, 0);
+}
+
+// Urgencia común a las tablas de vencimientos del Resumen (cláusulas y acuerdos).
+function resumenUrgenciaPill(dias) {
+  if (dias < 0)   return '<span class="pill pill-red">Vencido</span>';
+  if (dias <= 7)  return '<span class="pill pill-red">Crítico</span>';
+  if (dias <= 15) return '<span class="pill pill-red">Urgente</span>';
+  return '<span class="pill pill-yellow">Próximo</span>';
+}
+
+function resumenDiasBar(dias) {
+  const color = dias <= 15 ? 'var(--red)' : 'var(--yellow)';
+  const txt = dias < 0 ? 'venció hace ' + Math.abs(dias) + 'd' : dias + 'd';
+  return `<div class="days-bar"><div class="bar" style="width:${Math.max(8, Math.min(90, Math.abs(dias) * 3))}px;background:${color}"></div><span class="days-num" style="color:${color}">${txt}</span></div>`;
 }
 
 // ── IndexedDB cache ──
@@ -1080,6 +1058,7 @@ function renderAll(wb, csvText) {
   renderChangelog(wb);
   renderResumen(wb, csvText || '');
   renderAcuerdos();
+  renderResumenAcuerdos();
 }
 
 function renderClausulasV(wb, csvText) {
@@ -2197,31 +2176,32 @@ function renderResumen(wb, csvText) {
     }
 
     const allRowsA = parseCSVA(csvText);
+    // Vencidas (fecha < hoy, mismo criterio que el tab Cláusulas) + próximas (hoy..hoy+30).
+    // El orden ascendente por fecha deja las vencidas primero, la más antigua arriba.
     const urgent = allRowsA.filter(r => {
       if (r['Lending_Instrument1'] !== 'INV') return false;
       if (r['Clause_Status__English_'] !== 'TRACK') return false;
       const d = parseDateA(r['Clause_Current_Expiration_Date']);
-      return d && d > todayA && d <= limitA;
+      return d && d <= limitA;
     }).sort((a, b) => {
       return (parseDateA(a['Clause_Current_Expiration_Date'])||0) - (parseDateA(b['Clause_Current_Expiration_Date'])||0);
     });
 
     urgent.forEach(r => {
       const d = parseDateA(r['Clause_Current_Expiration_Date']);
-      const dias = d ? Math.ceil((d - todayA) / 86400000) : 0;
+      const dias = d ? Math.round((d - todayA) / 86400000) : 0;
       const fechaStr = d ? d.toLocaleDateString('es-CR',{day:'2-digit',month:'short',year:'numeric'}) : r['Clause_Current_Expiration_Date'];
-      const label = dias <= 7 ? 'Crítico' : dias <= 15 ? 'Urgente' : 'Próximo';
       tAlert.innerHTML += `<tr>
-        <td><span class="pill pill-red">${label}</span></td>
+        <td>${resumenUrgenciaPill(dias)}</td>
         <td class="mono">${r['Operation_Number1']}</td>
         <td style="font-size:13px">${r['B_Clause_Description']}</td>
         <td class="mono">${fechaStr}</td>
-        <td><div class="days-bar"><div class="bar" style="width:${Math.max(8,dias*3)}px;background:var(--red)"></div><span class="days-num" style="color:var(--red)">${dias}d</span></div></td>
+        <td>${resumenDiasBar(dias)}</td>
       </tr>`;
     });
 
     if (!urgent.length) {
-      tAlert.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);font-family:var(--mono);font-size:12px;padding:20px">Sin vencimientos en los próximos 30 días</td></tr>`;
+      tAlert.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);font-family:var(--mono);font-size:12px;padding:20px">Sin cláusulas vencidas ni próximas a vencer</td></tr>`;
     }
   } else {
     tAlert.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);font-family:var(--mono);font-size:12px;padding:20px">Sin datos de cláusulas disponibles</td></tr>`;
@@ -2428,6 +2408,47 @@ function renderAcuerdos() {
     filterDiv.appendChild(btn);
   });
   renderAcdTable();
+}
+
+// ── Resumen: acuerdos vencidos (Retrasado) y En proceso que vencen en ≤30 días ──
+function renderResumenAcuerdos() {
+  const tbody = document.getElementById('t-acd-resumen');
+  const card = document.getElementById('s-acd-card');
+  if (!_acdData.length) {
+    document.getElementById('s-acd').textContent = '—';
+    document.getElementById('s-acd-sub').textContent = 'Sin datos de acuerdos';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);font-family:var(--mono);font-size:12px;padding:20px">Sin datos de acuerdos disponibles</td></tr>';
+    return;
+  }
+  const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+  const rows = _acdData.map(r => {
+    const d = acdEffectiveDate(r);
+    return { r, d, dias: d ? Math.round((d - today) / 86400000) : null };
+  }).filter(x => x.r.estado === 'Retrasado' || (x.r.estado === 'En proceso' && x.d && x.dias <= 30))
+    .sort((a, b) => (a.d || 0) - (b.d || 0));
+
+  const vencidos = rows.filter(x => x.r.estado === 'Retrasado').length;
+  const proximos = rows.length - vencidos;
+  document.getElementById('s-acd').textContent = rows.length;
+  document.getElementById('s-acd-sub').textContent = `${vencidos} vencido${vencidos !== 1 ? 's' : ''} · ${proximos} en ≤30 días`;
+  card.className = 'stat-card ' + (vencidos ? 'red' : 'yellow');
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);font-family:var(--mono);font-size:12px;padding:20px">Sin acuerdos vencidos ni próximos a vencer</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(({ r, d, dias }) => {
+    const fechaStr = d ? d.toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '—';
+    const opTitle = r.programa.replace(/"/g, '&quot;');
+    return `<tr>
+      <td>${dias != null ? resumenUrgenciaPill(dias) : '<span class="pill pill-red">Vencido</span>'}</td>
+      <td class="mono" title="${opTitle}">${acdShortOpLabel(r.programa)}</td>
+      <td style="font-size:13px;max-width:380px;">${r.acuerdo}</td>
+      <td class="mono" style="font-size:11px;">${r.responsable || '—'}</td>
+      <td class="mono">${fechaStr}</td>
+      <td>${dias != null ? resumenDiasBar(dias) : '—'}</td>
+    </tr>`;
+  }).join('');
 }
 </script>
 <div id="prod-popup-overlay" onclick="if(event.target===this)closeProdPopup()">
