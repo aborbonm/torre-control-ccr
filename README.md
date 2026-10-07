@@ -232,8 +232,8 @@ descendente). La columna **Comentario** muestra el `Último comentario
 ingresado` del reporte. El badge rojo del tab indica la cantidad de acuerdos
 retrasados.
 
-El tab **Resumen** muestra además una tarjeta **Acuerdos vencidos / por
-vencer** y la tabla **Acuerdos vencidos y próximos a vencer (≤30 días)**: los
+El tab **Resumen** muestra además una tarjeta **Acuerdos** (con dos valores:
+**Vencidos** y **Vencen ≤30 días**) y la tabla **Acuerdos vencidos y próximos a vencer (≤30 días)**: los
 acuerdos en estado **Retrasado** más los **En proceso** cuya fecha de
 vencimiento efectiva cae dentro de los próximos 30 días (los Cumplidos y
 Eliminados no aparecen). Se ordenan por fecha, con los vencidos primero, y al
@@ -271,7 +271,7 @@ El dashboard mostrará el comentario más reciente por cláusula en el tab **Cl�
 
 | Tab | Fuente | Descripción |
 |-----|--------|-------------|
-| Resumen | xlsx + csv + agreement_report | KPIs generales: cláusulas vencidas, cláusulas que vencen en 180 días, productos críticos retrasados, operaciones activas (las que tienen productos críticos) y acuerdos vencidos / por vencer. Tabla de estado de productos por operación (Logrado / En tiempo / Retrasado / Pausado), tabla de **cláusulas vencidas y próximas a vencer (≤30 días)** y tabla de **acuerdos vencidos y próximos a vencer (≤30 días)**, con urgencia Vencido / Crítico (≤7 días) / Urgente (≤15) / Próximo. Cada tabla tiene al pie un enlace al tab con el detalle (Productos Críticos, Cláusulas, Acuerdos) |
+| Resumen | xlsx + csv + agreement_report | Cuatro tarjetas de KPI, en este orden: **Operaciones activas** (las que tienen productos críticos); **Cláusulas** (vencidas / vencen en ≤180 días); **Productos críticos** (retrasados / pausados); y **Acuerdos** (vencidos / vencen en ≤30 días). Cada tarjeta combinada muestra los dos valores lado a lado, en rojo y amarillo. Tabla de estado de productos por operación (Logrado / En tiempo / Retrasado / Pausado), tabla de **cláusulas vencidas y próximas a vencer (≤30 días)** y tabla de **acuerdos vencidos y próximos a vencer (≤30 días)**, con urgencia Vencido / Crítico (≤7 días) / Urgente (≤15) / Próximo. Cada tabla tiene al pie un enlace al tab con el detalle (Productos Críticos, Cláusulas, Acuerdos) |
 | Cláusulas | csv + xlsx | Dos secciones: **Vencidas** (con el comentario más reciente de `comentarios_clausulas`) y **Próximas a vencer (180 días)** con barra de urgencia. Solo considera cláusulas de préstamos de inversión (`INV`) en estado `TRACK`. Los badges del tab muestran ambos conteos. Filtro por operación (un botón por cada programa con cláusulas vencidas o por vencer; se generan solos a partir del CSV) que filtra ambas tablas; un segundo clic o **↺ Todas** vuelve a mostrar todas. Los badges y KPIs siguen mostrando los totales |
 | Resultados | xlsx + raw data | Indicadores de la Matriz de Resultados agrupados por operación y objetivo, con probabilidad Alta/Media/Baja (tarjetas con conteo y porcentaje del total) y filtro por operación. Los chips de producto crítico se colorean según su estado y, al hacer clic, muestran su(s) adquisición(es) crítica(s) (ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)) |
 | Productos Críticos | xlsx + raw data | Tarjetas con conteo y porcentaje de productos Logrados / En tiempo / Retrasados / Pausados, filtro por operación y tabla de productos. Cada producto muestra el nombre de su(s) adquisición(es) crítica(s) como chip clicable, con detalle de ID de proceso, monto, estado y método |
