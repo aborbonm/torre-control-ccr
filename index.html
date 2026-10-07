@@ -70,6 +70,15 @@
 
   .table-wrap{border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px;overflow-x:auto;}
   .stat-row-5{grid-template-columns:repeat(5,1fr);}
+  .stat-row-split{grid-template-columns:1fr 1.6fr 1.6fr 1.6fr;}
+  .split-body{display:grid;grid-template-columns:1fr 1px 1fr;gap:14px;margin-top:5px;}
+  .split-div{background:var(--border);}
+  .split-body .stat-value{margin:0 0 3px;}
+  .split-body .v-red{color:var(--red);}
+  .split-body .v-yellow{color:var(--yellow);}
+  .split-tag{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;}
+  .split-tag.red{color:var(--red);}
+  .split-tag.yellow{color:var(--yellow);}
   .table-wrap.has-foot{margin-bottom:8px;}
   .section-foot{display:flex;justify-content:flex-end;margin-bottom:24px;}
   .section-foot a{font-family:var(--mono);font-size:11px;color:var(--accent);text-decoration:none;cursor:pointer;}
@@ -228,8 +237,11 @@
 
   @media(max-width:900px){
     header{padding:14px 18px;}nav{padding:10px 18px 0;}main{padding:16px 18px;}
-    .stat-row,.stat-row.stat-row-5{grid-template-columns:repeat(2,1fr);}
+    .stat-row,.stat-row.stat-row-5,.stat-row.stat-row-split{grid-template-columns:repeat(2,1fr);}
     .acd-chart-row{grid-template-columns:1fr;}
+  }
+  @media(max-width:600px){
+    .stat-row.stat-row-split{grid-template-columns:1fr;}
   }
 </style>
 </head>
@@ -279,12 +291,32 @@
 
 <main>
   <div id="resumen" class="panel active">
-    <div class="stat-row stat-row-5">
-      <div class="stat-card red"><div class="stat-label">Cláusulas vencidas</div><div class="stat-value" id="s-cv">—</div><div class="stat-sub">Requieren atención inmediata</div></div>
-      <div class="stat-card yellow"><div class="stat-label">Vencen en 180 días</div><div class="stat-value" id="s-180">—</div><div class="stat-sub">En seguimiento</div></div>
-      <div class="stat-card yellow"><div class="stat-label">Productos críticos retrasados</div><div class="stat-value" id="s-ret">—</div><div class="stat-sub" id="s-ret-sub">Cargando…</div></div>
+    <div class="stat-row stat-row-split">
       <div class="stat-card blue"><div class="stat-label">Operaciones activas</div><div class="stat-value" id="s-ops">—</div><div class="stat-sub" id="s-ops-sub">Cargando…</div></div>
-      <div class="stat-card yellow" id="s-acd-card"><div class="stat-label">Acuerdos vencidos / por vencer</div><div class="stat-value" id="s-acd">—</div><div class="stat-sub" id="s-acd-sub">Cargando…</div></div>
+      <div class="stat-card">
+        <div class="stat-label">Cláusulas</div>
+        <div class="split-body">
+          <div><div class="stat-value v-red" id="s-cv">—</div><div class="split-tag red">Vencidas</div><div class="stat-sub">Atención inmediata</div></div>
+          <div class="split-div"></div>
+          <div><div class="stat-value v-yellow" id="s-180">—</div><div class="split-tag yellow">Vencen ≤180 días</div><div class="stat-sub">En seguimiento</div></div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Productos críticos</div>
+        <div class="split-body">
+          <div><div class="stat-value v-yellow" id="s-ret">—</div><div class="split-tag yellow">Retrasados</div><div class="stat-sub" id="s-ret-sub">Cargando…</div></div>
+          <div class="split-div"></div>
+          <div><div class="stat-value v-red" id="s-pau">—</div><div class="split-tag red">Pausados</div><div class="stat-sub" id="s-pau-sub">Cargando…</div></div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Acuerdos</div>
+        <div class="split-body">
+          <div><div class="stat-value v-red" id="s-acd-v">—</div><div class="split-tag red">Vencidos</div><div class="stat-sub" id="s-acd-v-sub">Cargando…</div></div>
+          <div class="split-div"></div>
+          <div><div class="stat-value v-yellow" id="s-acd-p">—</div><div class="split-tag yellow">Vencen ≤30 días</div><div class="stat-sub" id="s-acd-p-sub">Cargando…</div></div>
+        </div>
+      </div>
     </div>
     <div class="section-head"><h2>Estado de productos críticos por operación</h2></div>
     <div class="table-wrap has-foot"><table><thead><tr><th>Operación</th><th>Logrado</th><th>En tiempo</th><th>Retrasado</th><th>Pausado</th><th>Total</th></tr></thead><tbody id="t-resumen"></tbody></table></div>
@@ -1413,7 +1445,9 @@ function renderProductos(wb) {
   document.getElementById('p-ret-pct').textContent = pct(ret);
   document.getElementById('p-pau-pct').textContent = pct(pau);
   document.getElementById('s-ret').textContent = ret;
-  document.getElementById('s-ret-sub').textContent = `De ${_prodData.length} productos críticos`;
+  document.getElementById('s-ret-sub').textContent = pct(ret) || `De ${total}`;
+  document.getElementById('s-pau').textContent = pau;
+  document.getElementById('s-pau-sub').textContent = pct(pau) || `De ${total}`;
 
   // Botones de operación (single-toggle, igual que Resultados)
   const ops = [...new Set(_prodData.map(r => s(r[0])).filter(Boolean))];
@@ -2487,10 +2521,11 @@ function renderAcuerdos() {
 // ── Resumen: acuerdos vencidos (Retrasado) y En proceso que vencen en ≤30 días ──
 function renderResumenAcuerdos() {
   const tbody = document.getElementById('t-acd-resumen');
-  const card = document.getElementById('s-acd-card');
   if (!_acdData.length) {
-    document.getElementById('s-acd').textContent = '—';
-    document.getElementById('s-acd-sub').textContent = 'Sin datos de acuerdos';
+    document.getElementById('s-acd-v').textContent = '—';
+    document.getElementById('s-acd-p').textContent = '—';
+    document.getElementById('s-acd-v-sub').textContent = 'Sin datos de acuerdos';
+    document.getElementById('s-acd-p-sub').textContent = 'Sin datos de acuerdos';
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);font-family:var(--mono);font-size:12px;padding:20px">Sin datos de acuerdos disponibles</td></tr>';
     return;
   }
@@ -2503,9 +2538,10 @@ function renderResumenAcuerdos() {
 
   const vencidos = rows.filter(x => x.r.estado === 'Retrasado').length;
   const proximos = rows.length - vencidos;
-  document.getElementById('s-acd').textContent = rows.length;
-  document.getElementById('s-acd-sub').textContent = `${vencidos} vencido${vencidos !== 1 ? 's' : ''} · ${proximos} en ≤30 días`;
-  card.className = 'stat-card ' + (vencidos ? 'red' : 'yellow');
+  document.getElementById('s-acd-v').textContent = vencidos;
+  document.getElementById('s-acd-p').textContent = proximos;
+  document.getElementById('s-acd-v-sub').textContent = 'Atención inmediata';
+  document.getElementById('s-acd-p-sub').textContent = 'En seguimiento';
 
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);font-family:var(--mono);font-size:12px;padding:20px">Sin acuerdos vencidos ni próximos a vencer</td></tr>';
