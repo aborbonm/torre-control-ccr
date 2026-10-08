@@ -18,6 +18,9 @@ El dashboard lee sus datos al cargarse:
   descargado desde el tablero de PowerBI del BID.
 - **`Raw Data - <préstamo>.xlsx`** — uno por operación (opcional), con el detalle de los
   procesos de adquisición de esa operación. Ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación).
+- **`Contracts and Amendments - <préstamo>.xlsx`** — uno por operación (opcional),
+  complemento del Raw Data con los contratos registrados en el nuevo módulo de
+  contratos del portal. Ver [Contratos del nuevo módulo del portal](#contratos-del-nuevo-módulo-del-portal).
 - **`PMR_Historico.xlsx`** — fuente única del tab **PMR** (calificaciones, indicadores
   y ciclos históricos). Sin este archivo el tab PMR no muestra tarjetas, pero el
   resto del dashboard sigue funcionando igual. Ver [Datos de PMR por operación](#datos-de-pmr-por-operación).
@@ -75,6 +78,16 @@ El archivo se descarga desde el [Portal de Cliente del BID](https://clientportal
   (ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)).
 - Sube el archivo **sin modificar nada del raw data**.
 
+### Contracts and Amendments (`Contracts and Amendments - <préstamo>.xlsx`)
+
+Se descarga también desde el [Portal de Cliente del BID](https://clientportal.iadb.org/),
+en la misma operación, desde el enlace de descarga de contratos y enmiendas del nuevo
+módulo de registro de contratos.
+- Hay que descargarlo **junto con** el Raw Data cada vez que se actualice este último:
+  los dos se leen juntos (ver [Contratos del nuevo módulo del portal](#contratos-del-nuevo-módulo-del-portal)).
+- Mismas reglas de nombre que el Raw Data: valida que no traiga un `(2)`, `(3)` o
+  `_1` agregado por el navegador, y súbelo **sin modificar nada**.
+
 ### Pasos para subir archivos
 
 1. En este repositorio, haz clic en el archivo que deseas reemplazar
@@ -89,6 +102,22 @@ El tab **Productos Críticos** y el popup de producto en **Resultados** pueden m
 para cada producto crítico, el nombre de su(s) adquisición(es) crítica(s) asociada(s)
 como un chip clicable — con detalle de ID de proceso, monto estimado, estado del
 proceso, método de adquisición y riesgo al hacer clic.
+
+Según la etapa del proceso, el popup agrega además:
+
+| Etapa | Qué muestra | De dónde sale |
+|-------|-------------|---------------|
+| **Contrato registrado** | Por cada contrato: contratista, monto del contrato, fecha de firma y fecha de fin estimada (con el monto y la fecha de fin vigentes si hay enmiendas) | Hojas `Contratos`/`Enmiendas` del Raw Data y del Contracts and Amendments |
+| **Previsto** | Fecha en que se espera iniciar/publicar el proceso (primer hito del proceso) | Hoja `Hitos` del Raw Data (fecha re-estimada o, si no hay, la estimada) |
+| **En curso** | Fecha en que se espera tener el contrato firmado | Hito `Contrato Firmado` de la hoja `Hitos` |
+
+Si una fecha esperada ya pasó sin cumplirse, se marca con *fecha ya pasada*. Los
+procesos cancelados, desiertos, rescindidos o completados sin contrato registrado no
+muestran esta sección. Si el hito `Contrato Firmado` tiene fecha real pero el contrato
+no aparece en ningún archivo, el popup lo indica.
+
+Los montos se muestran **en la moneda original del contrato**: los contratos del nuevo
+módulo vienen en su moneda (por ejemplo, CRC) y los del Raw Data vienen en USD.
 
 Esto depende de dos piezas de datos:
 
@@ -107,7 +136,9 @@ Esto depende de dos piezas de datos:
    exportados del portal de cliente del BID (reporte "Plan de Adquisiciones"). El
    dashboard usa la hoja `Plan de Adquisiciones` de cada archivo para obtener el
    nombre, monto estimado, estado del proceso y método de adquisición de cada
-   `ID_Proceso`.
+   `ID_Proceso`; la hoja `Hitos` para las fechas esperadas; y las hojas `Contratos`
+   y `Enmiendas` (junto con el archivo `Contracts and Amendments`, si existe) para
+   los datos del contrato.
    - **Convención de nombre**: `Raw Data - <aprobación con "/" reemplazado por "_">.xlsx`,
      donde `<aprobación>` es el número de préstamo tal como aparece en la columna
      `aprobacion` de la hoja `datos_ops` (ej. `6061/OC-CR` → `Raw Data - 6061_OC-CR.xlsx`).
@@ -118,10 +149,40 @@ CR-L1137 (`4871_OC-CR`), CR-J0002 (`5777_GR-CR`), CR-L1151 (`5823_OC-CR`), CR-L1
 mostrando el texto libre de las columnas `Adquisición Crítica` / `Riesgos/Comentarios`
 de `productos criticos`, como fallback automático.
 
+### Contratos del nuevo módulo del portal
+
+Desde la implementación del nuevo módulo de registro de contratos del portal del
+cliente, los contratos registrados ahí **ya no aparecen** en las hojas `Contratos` y
+`Enmiendas` del Raw Data: solo vienen en un archivo aparte,
+`Contracts and Amendments - <préstamo>.xlsx` (misma convención de nombre que el Raw
+Data). Mientras el BID no integre ambos exportes en uno solo, hay **dos archivos por
+operación**, y el dashboard los lee juntos:
+
+- El **Raw Data** sigue siendo la fuente del Plan de Adquisiciones (nombre, monto
+  estimado, estado y método de todos los procesos, incluidos los que tienen contrato
+  en el módulo nuevo), de los hitos y de los contratos anteriores al módulo nuevo.
+- El **Contracts and Amendments** aporta los contratos del módulo nuevo. El dashboard
+  recorta el prefijo que este archivo agrega al ID de contrato
+  (`4871OCCR-CR-L1137-P00230-C01` → `CR-L1137-P00230-C01`) y, si un contrato aparece
+  en ambos archivos, usa el del módulo nuevo.
+- Este archivo todavía **no trae hoja de Enmiendas**; por eso, en sus contratos, el
+  popup indica "enmiendas no disponibles en el exporte". Si en una versión futura la
+  trae, el dashboard la usa sin cambios.
+- Es **opcional**: si una operación no tiene el archivo, el dashboard simplemente
+  muestra los contratos del Raw Data.
+
+**Operaciones con Contracts and Amendments hoy**: CR-L1137 (`4871_OC-CR`).
+
+**Cuando el BID unifique los exportes**: bastará con dejar de subir los archivos
+`Contracts and Amendments` y borrar los existentes del repositorio. El dashboard
+reconoce las columnas de ambos formatos, por lo que no debería requerir cambios.
+
 ### Cómo agregar el raw data de una operación nueva
 
 1. Sube el archivo `Raw Data - <préstamo>.xlsx` a la raíz del repo, con el nombre
    exacto según la convención de arriba (mismos pasos de "Pasos para subir archivos").
+   Si la operación tiene contratos en el nuevo módulo del portal, sube también su
+   `Contracts and Amendments - <préstamo>.xlsx`.
 2. En `productos_adquisiciones`, agrega una fila por cada (producto crítico, proceso)
    que quieras asociar, indicando `Sí`/`No` en `Adquisicion_Critica` y, si aplica,
    el riesgo en `Riesgos_Comentarios` (solo en filas `Sí`).
@@ -288,7 +349,8 @@ El dashboard mostrará el comentario más reciente por cláusula en el tab **Cl�
 | `index.html` | Dashboard completo (aplicación de una sola página, sin servidor) |
 | `torre_de_control_CCR.xlsx` | Datos: productos críticos, adquisiciones críticas, equipo, documentos, resultados, comentarios de cláusulas y changelog |
 | `Status Date Clause Operation.csv` | Estado de cláusulas contractuales (fuente: PowerBI BID) |
-| `Raw Data - <préstamo>.xlsx` | Detalle del Plan de Adquisiciones por operación (uno por préstamo con datos cargados; ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)) |
+| `Raw Data - <préstamo>.xlsx` | Detalle del Plan de Adquisiciones, hitos y contratos por operación (uno por préstamo con datos cargados; ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)) |
+| `Contracts and Amendments - <préstamo>.xlsx` | Contratos registrados en el nuevo módulo del portal, complemento del Raw Data (opcional; ver [Contratos del nuevo módulo del portal](#contratos-del-nuevo-módulo-del-portal)) |
 | `PMR_Historico.xlsx` | Fuente única del tab PMR: calificaciones, indicadores y ciclos históricos, una hoja por operación (ver [Datos de PMR por operación](#datos-de-pmr-por-operación)) |
 | `agreement_report.xlsx` | Fuente única del tab Acuerdos: acuerdos de Revisión de Cartera por operación (ver [Acuerdos de Revisión de Cartera](#acuerdos-de-revisión-de-cartera)) |
 | `README.md` | Este archivo |

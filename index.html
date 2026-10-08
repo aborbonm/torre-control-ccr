@@ -169,7 +169,13 @@
   .prod-adq-chips{display:flex;flex-wrap:wrap;gap:4px;}
   #adq-popup-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;align-items:center;justify-content:center;}
   #adq-popup-overlay.open{display:flex;}
-  #adq-popup-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 28px;min-width:280px;max-width:420px;position:relative;box-shadow:0 8px 32px rgba(0,0,0,.5);}
+  #adq-popup-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 28px;min-width:280px;max-width:420px;max-height:85vh;overflow-y:auto;position:relative;box-shadow:0 8px 32px rgba(0,0,0,.5);}
+  .adq-contrato{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;margin-bottom:6px;}
+  .adq-contrato-nombre{font-size:12px;font-weight:700;color:var(--text);}
+  .adq-contrato-monto{font-family:var(--mono);font-size:13px;color:var(--accent);margin:2px 0;}
+  .adq-contrato-fechas{font-family:var(--mono);font-size:11px;color:var(--text);}
+  .adq-contrato-meta{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px;}
+  .adq-vencida{font-family:var(--mono);font-size:10px;color:var(--yellow);}
   #adq-popup-title{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;}
   #adq-popup-estado{margin-bottom:14px;}
   #adq-popup-close{position:absolute;top:14px;right:16px;background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1;padding:0;}
@@ -716,6 +722,158 @@ function rawDataFileNameFor(aprobacion) {
   return 'Raw Data - ' + aprobacion.replace(/\//g, '_') + '.xlsx';
 }
 
+// Archivo complementario del nuevo módulo de registro de contratos del portal.
+// Mientras el BID no unifique ambos exportes, los contratos registrados en el módulo
+// nuevo solo aparecen aquí (y ya no en las hojas Contratos/Enmiendas del Raw Data).
+// Es opcional: si no existe para una operación, se omite sin error.
+function contractsFileNameFor(aprobacion) {
+  return 'Contracts and Amendments - ' + aprobacion.replace(/\//g, '_') + '.xlsx';
+}
+
+// Índice de la primera columna cuyo encabezado (en minúsculas) coincide con alguno de los nombres.
+function colIdx(hdr, ...names) {
+  for (const n of names) {
+    const i = hdr.indexOf(n);
+    if (i >= 0) return i;
+  }
+  return -1;
+}
+
+// El módulo nuevo antepone un prefijo al ID de contrato ("4871OCCR-CR-L1137-P00230-C01").
+// Se recorta todo lo anterior al ID del proceso para que ambos formatos calcen.
+function normalizeContractId(idContrato, idProceso) {
+  const k = idProceso ? idContrato.indexOf(idProceso) : -1;
+  return k > 0 ? idContrato.slice(k) : idContrato;
+}
+
+// Hoja "Hitos": idProceso -> [{nombre, est, reest, real}] en el orden del archivo (cronológico).
+function parseHitos(rwb) {
+  const map = {};
+  const ws = getSheet(rwb, 'hitos');
+  const rows = ws ? sheetToArr(ws) : [];
+  if (!rows.length) return map;
+  const hdr = rows[0].map(h => s(h).toLowerCase());
+  const iId = colIdx(hdr, 'id del proceso'), iNom = colIdx(hdr, 'nombre del hito');
+  const iEst = colIdx(hdr, 'fecha estimada'), iRe = colIdx(hdr, 'fecha re-estimada'), iReal = colIdx(hdr, 'fecha real');
+  if (iId < 0 || iNom < 0) return map;
+  rows.slice(1).forEach(r => {
+    const id = s(r[iId]);
+    if (!id) return;
+    (map[id] = map[id] || []).push({
+      nombre: s(r[iNom]),
+      est:   iEst  >= 0 ? r[iEst]  : null,
+      reest: iRe   >= 0 ? r[iRe]   : null,
+      real:  iReal >= 0 ? r[iReal] : null,
+    });
+  });
+  return map;
+}
+
+// Hojas "Contratos" (+ "Enmiendas" si existe) de un Raw Data o de un Contracts and Amendments.
+// Los dos exportes nombran distinto las mismas columnas; se reconocen por encabezado, no por
+// nombre de archivo, para que el día que el portal unifique ambos exportes no haya que tocar esto.
+// Devuelve [{idProceso, idContrato, adjudicatario, estado, firma, fin, moneda, monto, enmiendas, sinEnmiendas, fuente}]
+function parseContratos(rwb, fuente) {
+  const ws = getSheet(rwb, 'contratos');
+  const rows = ws ? sheetToArr(ws) : [];
+  if (!rows.length) return [];
+  const hdr = rows[0].map(h => s(h).toLowerCase());
+  const iProc  = colIdx(hdr, 'id del proceso');
+  const iCont  = colIdx(hdr, 'id del contrato');
+  const iAdj   = colIdx(hdr, 'nombre del adjudicado', 'nombre de adjudicatario');
+  const iEst   = colIdx(hdr, 'estado del contrato');
+  const iFirma = colIdx(hdr, 'fecha de firma del contrato');
+  const iFin   = colIdx(hdr, 'fecha de terminación', 'fecha de fin');
+  const iMon   = colIdx(hdr, 'tipo de moneda');
+  // Módulo nuevo: monto en moneda original ("Total moneda"). Raw Data: monto en USD.
+  const iTot   = colIdx(hdr, 'total moneda');
+  const iUsd   = colIdx(hdr, 'monto del contrato (usd)');
+  if (iProc < 0 || iCont < 0) return [];
+
+  const byId = {};
+  const list = [];
+  rows.slice(1).forEach(r => {
+    const idProceso = s(r[iProc]);
+    const idRaw = s(r[iCont]);
+    if (!idProceso || !idRaw) return;
+    const useTot = iTot >= 0;
+    const c = {
+      idProceso,
+      idContrato: normalizeContractId(idRaw, idProceso),
+      adjudicatario: iAdj >= 0 ? s(r[iAdj]) : '',
+      estado: iEst >= 0 ? s(r[iEst]) : '',
+      firma: iFirma >= 0 ? r[iFirma] : null,
+      fin: iFin >= 0 ? r[iFin] : null,
+      moneda: useTot ? (iMon >= 0 ? s(r[iMon]) : '') : 'USD',
+      monto: useTot ? r[iTot] : (iUsd >= 0 ? r[iUsd] : null),
+      enmiendas: 0,
+      sinEnmiendas: false,
+      fuente,
+    };
+    byId[c.idContrato] = c;
+    list.push(c);
+  });
+
+  // Enmiendas: la más reciente (por fecha de firma) define el plazo y el monto vigentes.
+  const wsE = getSheet(rwb, 'enmiendas');
+  const eRows = wsE ? sheetToArr(wsE) : [];
+  if (!wsE) list.forEach(c => { c.sinEnmiendas = true; });
+  if (eRows.length) {
+    const eh = eRows[0].map(h => s(h).toLowerCase());
+    const eProc = colIdx(eh, 'id del proceso'), eCont = colIdx(eh, 'id del contrato');
+    const eFirma = colIdx(eh, 'fecha de firma de la enmienda');
+    const eFin = colIdx(eh, 'nueva fecha de terminación', 'nueva fecha de fin');
+    const eAcum = eh.findIndex(h => h.startsWith('monto total acumulado') &&
+      !/bid|co-fin|contrapartida|local/.test(h));
+    const eAcumUsd = eAcum >= 0 && eh[eAcum].includes('(usd)');
+    const ultima = {};
+    eRows.slice(1).forEach(r => {
+      if (eCont < 0) return;
+      const id = normalizeContractId(s(r[eCont]), eProc >= 0 ? s(r[eProc]) : '');
+      const c = byId[id];
+      if (!c) return;
+      c.enmiendas++;
+      const f = eFirma >= 0 ? r[eFirma] : null;
+      const prev = ultima[id];
+      if (!prev || (f && (!prev.f || f >= prev.f))) ultima[id] = { f, r };
+    });
+    Object.entries(ultima).forEach(([id, { r }]) => {
+      const c = byId[id];
+      if (eFin >= 0 && r[eFin]) c.fin = r[eFin];
+      // Solo se usa el acumulado si está en la misma moneda que el contrato.
+      if (eAcum >= 0 && r[eAcum] != null && eAcumUsd === (c.moneda === 'USD')) c.monto = r[eAcum];
+    });
+  }
+  return list;
+}
+
+// Descarga (o lee de caché) un archivo por operación. Devuelve bytes o null.
+// optional=true: un 404 significa "no hay archivo" y se ignora la caché (por ejemplo,
+// cuando el portal unifique los exportes y se deje de subir el Contracts and Amendments).
+async function fetchOpFile(fileName, cacheKey, useCacheOnly, optional) {
+  let bytes = null;
+  if (!useCacheOnly) {
+    try {
+      const res = await fetch(RAWDATA_BASE_URL + encodeURIComponent(fileName) + '?t=' + Date.now());
+      if (res.ok) {
+        bytes = new Uint8Array(await res.arrayBuffer());
+        await saveToCacheKey(cacheKey, bytes, Date.now());
+      } else if (optional && res.status === 404) {
+        return null;
+      } else {
+        console.warn(fileName + ' no disponible (HTTP ' + res.status + ')');
+      }
+    } catch (e) {
+      console.warn('Error cargando ' + fileName + ':', e);
+    }
+  }
+  if (!bytes) {
+    const cached = await getFromCacheKey(cacheKey);
+    if (cached && cached.data) bytes = cached.data;
+  }
+  return bytes;
+}
+
 // Operaciones que tienen al menos una fila en productos_adquisiciones (única fuente de verdad
 // de qué operación requiere un raw data — no se asume que todas lo tengan).
 function opsNeedingRawData(wb) {
@@ -777,36 +935,41 @@ async function loadRawDataMap(wb, useCacheOnly) {
   for (const op of ops) {
     const aprob = aprobacionByOp[op];
     if (!aprob) continue;
-    const cacheKey = 'rawdata:' + op;
-    let bytes = null;
+    const contratos = [];
 
-    if (!useCacheOnly) {
+    const bytes = await fetchOpFile(rawDataFileNameFor(aprob), 'rawdata:' + op, useCacheOnly, false);
+    if (bytes) {
       try {
-        const url = RAWDATA_BASE_URL + encodeURIComponent(rawDataFileNameFor(aprob));
-        const res = await fetch(url + '?t=' + Date.now());
-        if (res.ok) {
-          bytes = new Uint8Array(await res.arrayBuffer());
-          await saveToCacheKey(cacheKey, bytes, Date.now());
-        } else {
-          console.warn('Raw data no disponible para ' + op + ' (HTTP ' + res.status + ')');
-        }
+        const rwb = XLSX.read(bytes, { type: 'array', cellDates: true });
+        const paMap = parsePlanAdquisiciones(rwb);
+        const hitos = parseHitos(rwb);
+        Object.entries(paMap).forEach(([id, info]) => {
+          map[op + '|' + id] = { ...info, hitos: hitos[id] || [], contratos: [] };
+        });
+        contratos.push(...parseContratos(rwb, 'raw'));
       } catch (e) {
-        console.warn('Error cargando raw data de ' + op + ':', e);
+        console.warn('Error parseando raw data de ' + op + ':', e);
       }
     }
-    if (!bytes) {
-      const cached = await getFromCacheKey(cacheKey);
-      if (cached && cached.data) bytes = cached.data;
-    }
-    if (!bytes) continue;
 
-    try {
-      const rwb = XLSX.read(bytes, { type: 'array', cellDates: true });
-      const paMap = parsePlanAdquisiciones(rwb);
-      Object.entries(paMap).forEach(([id, info]) => { map[op + '|' + id] = info; });
-    } catch (e) {
-      console.warn('Error parseando raw data de ' + op + ':', e);
+    const cBytes = await fetchOpFile(contractsFileNameFor(aprob), 'contracts:' + op, useCacheOnly, true);
+    if (cBytes) {
+      try {
+        const cwb = XLSX.read(cBytes, { type: 'array', cellDates: true });
+        contratos.push(...parseContratos(cwb, 'modulo-nuevo'));
+      } catch (e) {
+        console.warn('Error parseando Contracts and Amendments de ' + op + ':', e);
+      }
     }
+
+    // Si un contrato aparece en ambos archivos, manda el del módulo nuevo (va después en la lista).
+    const porId = {};
+    contratos.forEach(c => { porId[c.idContrato] = c; });
+    Object.values(porId).forEach(c => {
+      const key = op + '|' + c.idProceso;
+      if (!map[key]) map[key] = { nombre: c.idProceso, monto: null, estado: '', metodo: '', hitos: [], contratos: [] };
+      map[key].contratos.push(c);
+    });
   }
   return map;
 }
@@ -1387,7 +1550,8 @@ let _prodActiveOp = null;
 let _prodAdqMap = {};
 // "op|idProceso" -> riesgo (texto), tomado de productos_adquisiciones
 let _riesgoByProc = {};
-// "op|idProceso" -> {nombre, monto, estado, metodo}, tomado del raw data de cada operación (ver loadRawDataMap)
+// "op|idProceso" -> {nombre, monto, estado, metodo, hitos, contratos}, tomado del raw data y del
+// Contracts and Amendments de cada operación (ver loadRawDataMap)
 let _rawProcMap = {};
 
 // Parsea productos_adquisiciones y llena _prodAdqMap/_riesgoByProc. Se llama una sola vez al
@@ -1873,6 +2037,83 @@ function fmtUSD(v) {
   return n.toLocaleString('es-CR', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 }
 
+function fmtMoneda(v, moneda) {
+  if (v == null || v === '') return '—';
+  const n = Number(v);
+  if (Number.isNaN(n)) return String(v);
+  try {
+    return n.toLocaleString('es-CR', { style: 'currency', currency: moneda || 'USD', currencyDisplay: 'code', maximumFractionDigits: 0 });
+  } catch (e) {
+    return (moneda ? moneda + ' ' : '') + n.toLocaleString('es-CR', { maximumFractionDigits: 0 });
+  }
+}
+
+function escHtml(t) {
+  return String(t == null ? '' : t).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function hitoFechaEsperada(h) { return h.reest || h.est || null; }
+
+function asDate(v) {
+  if (v instanceof Date) return v;
+  if (typeof v === 'number') return new Date(Date.UTC(1970, 0, 1 + Math.round(v - 25569)));
+  return null;
+}
+
+// Fecha esperada con aviso si ya pasó sin cumplirse.
+function fechaEsperadaHtml(v) {
+  const d = asDate(v);
+  const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+  const vencida = d && d < today;
+  return fmtDate(v) + (vencida ? ' <span class="adq-vencida">· fecha ya pasada</span>' : '');
+}
+
+const PROC_ESTADO_TERMINAL = /cancel|desierto|rechazo|rescindido|completada/i;
+
+// Sección de etapa del popup de adquisición:
+//  - contrato registrado → contratista, monto, firma y fin estimado (por contrato)
+//  - previsto            → fecha esperada de inicio/publicación (primer hito)
+//  - en curso            → fecha esperada de firma (hito "Contrato Firmado")
+function adqEtapaHtml(info) {
+  const field = (label, value) =>
+    `<div class="prod-popup-field"><div class="prod-popup-label">${label}</div><div class="prod-popup-value">${value}</div></div>`;
+  const contratos = info.contratos || [];
+  const hitos = info.hitos || [];
+  const estado = String(info.estado || '');
+
+  if (contratos.length) {
+    const label = contratos.length > 1 ? `Contratos registrados (${contratos.length})` : 'Contrato registrado';
+    const items = contratos.map(c => {
+      const notas = [];
+      if (c.enmiendas) notas.push(`monto y fin vigentes con ${c.enmiendas} enmienda${c.enmiendas !== 1 ? 's' : ''}`);
+      if (c.sinEnmiendas) notas.push('módulo nuevo de contratos · enmiendas no disponibles en el exporte');
+      return `<div class="adq-contrato">
+        <div class="adq-contrato-nombre">${escHtml(c.adjudicatario || '—')}</div>
+        <div class="adq-contrato-monto">${fmtMoneda(c.monto, c.moneda)}</div>
+        <div class="adq-contrato-fechas">Firma: ${fmtDate(c.firma)} · Fin estimado: ${fmtDate(c.fin)}</div>
+        <div class="adq-contrato-meta">${escHtml(c.idContrato)}${c.estado ? ' · ' + escHtml(c.estado) : ''}</div>
+        ${notas.length ? `<div class="adq-contrato-meta">${notas.join(' · ')}</div>` : ''}
+      </div>`;
+    }).join('');
+    return field(label, items);
+  }
+
+  if (/previsto/i.test(estado)) {
+    const h = hitos[0];
+    return field('Inicio esperado del proceso',
+      h ? `${fechaEsperadaHtml(hitoFechaEsperada(h))}<div class="adq-contrato-meta">Primer hito: ${escHtml(h.nombre)}</div>`
+        : 'Sin hitos registrados');
+  }
+
+  const firma = hitos.find(h => /contrato firmado/i.test(h.nombre));
+  if (firma && firma.real) {
+    return field('Contrato firmado', `${fmtDate(firma.real)}<div class="adq-contrato-meta">Sin registro en la hoja de contratos</div>`);
+  }
+  if (!estado || PROC_ESTADO_TERMINAL.test(estado)) return '';
+  return field('Firma de contrato esperada',
+    firma ? fechaEsperadaHtml(hitoFechaEsperada(firma)) : 'Sin hito "Contrato Firmado"');
+}
+
 function showAdqPopup(op, idProceso) {
   const info = _rawProcMap[op + '|' + idProceso] || {};
   const riesgo = _riesgoByProc[op + '|' + idProceso] || '';
@@ -1881,6 +2122,7 @@ function showAdqPopup(op, idProceso) {
   document.getElementById('adq-popup-id').textContent = idProceso;
   document.getElementById('adq-popup-monto').textContent = fmtUSD(info.monto);
   document.getElementById('adq-popup-metodo').textContent = info.metodo || '—';
+  document.getElementById('adq-popup-etapa').innerHTML = adqEtapaHtml(info);
   document.getElementById('adq-popup-riesgo').textContent = riesgo || '—';
   document.getElementById('adq-popup-overlay').classList.add('open');
 }
@@ -2593,6 +2835,7 @@ function renderResumenAcuerdos() {
       <div class="prod-popup-label">Método de Adquisición</div>
       <div class="prod-popup-value" id="adq-popup-metodo"></div>
     </div>
+    <div id="adq-popup-etapa"></div>
     <div class="prod-popup-field">
       <div class="prod-popup-label">Riesgos / Comentarios</div>
       <div class="prod-popup-value" id="adq-popup-riesgo"></div>
