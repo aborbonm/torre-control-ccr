@@ -772,7 +772,7 @@ function parseHitos(rwb) {
 // Hojas "Contratos" (+ "Enmiendas" si existe) de un Raw Data o de un Contracts and Amendments.
 // Los dos exportes nombran distinto las mismas columnas; se reconocen por encabezado, no por
 // nombre de archivo, para que el día que el portal unifique ambos exportes no haya que tocar esto.
-// Devuelve [{idProceso, idContrato, adjudicatario, estado, firma, fin, moneda, monto, enmiendas, sinEnmiendas, fuente}]
+// Devuelve [{idProceso, idContrato, adjudicatario, estado, firma, fin, moneda, monto, otrosMontos, enmiendas, sinEnmiendas, fuente}]
 function parseContratos(rwb, fuente) {
   const ws = getSheet(rwb, 'contratos');
   const rows = ws ? sheetToArr(ws) : [];
@@ -797,15 +797,24 @@ function parseContratos(rwb, fuente) {
     const idRaw = s(r[iCont]);
     if (!idProceso || !idRaw) return;
     const useTot = iTot >= 0;
+    const idContrato = normalizeContractId(idRaw, idProceso);
+    const moneda = useTot ? (iMon >= 0 ? s(r[iMon]) : '') : 'USD';
+    const monto = useTot ? r[iTot] : (iUsd >= 0 ? r[iUsd] : null);
+    // Un contrato pagadero en varias monedas viene en una fila por moneda (mismo ID).
+    if (byId[idContrato]) {
+      byId[idContrato].otrosMontos.push({ moneda, monto });
+      return;
+    }
     const c = {
       idProceso,
-      idContrato: normalizeContractId(idRaw, idProceso),
+      idContrato,
       adjudicatario: iAdj >= 0 ? s(r[iAdj]) : '',
       estado: iEst >= 0 ? s(r[iEst]) : '',
       firma: iFirma >= 0 ? r[iFirma] : null,
       fin: iFin >= 0 ? r[iFin] : null,
-      moneda: useTot ? (iMon >= 0 ? s(r[iMon]) : '') : 'USD',
-      monto: useTot ? r[iTot] : (iUsd >= 0 ? r[iUsd] : null),
+      moneda,
+      monto,
+      otrosMontos: [],
       enmiendas: 0,
       sinEnmiendas: false,
       fuente,
@@ -841,7 +850,7 @@ function parseContratos(rwb, fuente) {
       const c = byId[id];
       if (eFin >= 0 && r[eFin]) c.fin = r[eFin];
       // Solo se usa el acumulado si está en la misma moneda que el contrato.
-      if (eAcum >= 0 && r[eAcum] != null && eAcumUsd === (c.moneda === 'USD')) c.monto = r[eAcum];
+      if (eAcum >= 0 && r[eAcum] != null && !c.otrosMontos.length && eAcumUsd === (c.moneda === 'USD')) c.monto = r[eAcum];
     });
   }
   return list;
@@ -2089,7 +2098,7 @@ function adqEtapaHtml(info) {
       if (c.sinEnmiendas) notas.push('módulo nuevo de contratos · enmiendas no disponibles en el exporte');
       return `<div class="adq-contrato">
         <div class="adq-contrato-nombre">${escHtml(c.adjudicatario || '—')}</div>
-        <div class="adq-contrato-monto">${fmtMoneda(c.monto, c.moneda)}</div>
+        <div class="adq-contrato-monto">${[{ moneda: c.moneda, monto: c.monto }, ...c.otrosMontos].map(m => fmtMoneda(m.monto, m.moneda)).join(' + ')}</div>
         <div class="adq-contrato-fechas">Firma: ${fmtDate(c.firma)} · Fin estimado: ${fmtDate(c.fin)}</div>
         <div class="adq-contrato-meta">${escHtml(c.idContrato)}${c.estado ? ' · ' + escHtml(c.estado) : ''}</div>
         ${notas.length ? `<div class="adq-contrato-meta">${notas.join(' · ')}</div>` : ''}
