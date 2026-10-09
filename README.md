@@ -117,7 +117,10 @@ muestran esta sección. Si el hito `Contrato Firmado` tiene fecha real pero el c
 no aparece en ningún archivo, el popup lo indica.
 
 Los montos se muestran **en la moneda original del contrato**: los contratos del nuevo
-módulo vienen en su moneda (por ejemplo, CRC) y los del Raw Data vienen en USD.
+módulo vienen en su moneda (por ejemplo, CRC) y los del Raw Data vienen en USD. Un
+contrato pagadero en varias monedas viene en el Contracts and Amendments como una fila
+por moneda con el mismo ID de contrato; el popup muestra los montos sumados (por
+ejemplo, `CRC 1 610 690 000 + USD 550 500`).
 
 Esto depende de dos piezas de datos:
 
@@ -171,7 +174,10 @@ operación**, y el dashboard los lee juntos:
 - Es **opcional**: si una operación no tiene el archivo, el dashboard simplemente
   muestra los contratos del Raw Data.
 
-**Operaciones con Contracts and Amendments hoy**: CR-L1137 (`4871_OC-CR`).
+**Operaciones con Contracts and Amendments hoy**: CR-L1032 (`3071_OC-CR`), CR-L1139
+(`4864_OC-CR`), CR-L1137 (`4871_OC-CR`), CR-J0002 (`5777_GR-CR`) y CR-L1151
+(`5823_OC-CR`). CR-L1157 (`6061_OC-CR`) todavía no tiene contratos en el módulo nuevo,
+así que solo usa su Raw Data.
 
 **Cuando el BID unifique los exportes**: bastará con dejar de subir los archivos
 `Contracts and Amendments` y borrar los existentes del repositorio. El dashboard
@@ -335,7 +341,7 @@ El dashboard mostrará el comentario más reciente por cláusula en el tab **Cl�
 | Resumen | xlsx + csv + agreement_report | Cuatro tarjetas de KPI, en este orden: **Operaciones activas** (las que tienen productos críticos); **Cláusulas** (vencidas / vencen en ≤180 días); **Productos críticos** (retrasados / pausados); y **Acuerdos** (vencidos / vencen en ≤30 días). Cada tarjeta combinada muestra los dos valores lado a lado, en rojo y amarillo. Tabla de estado de productos por operación (Logrado / En tiempo / Retrasado / Pausado), tabla de **cláusulas vencidas y próximas a vencer (≤30 días)** y tabla de **acuerdos vencidos y próximos a vencer (≤30 días)**, con urgencia Vencido / Crítico (≤7 días) / Urgente (≤15) / Próximo. Cada tabla tiene al pie un enlace al tab con el detalle (Productos Críticos, Cláusulas, Acuerdos) |
 | Cláusulas | csv + xlsx | Dos secciones: **Vencidas** (con el comentario más reciente de `comentarios_clausulas`) y **Próximas a vencer (180 días)** con barra de urgencia. Solo considera cláusulas de préstamos de inversión (`INV`) en estado `TRACK`. Los badges del tab muestran ambos conteos. Filtro por operación (un botón por cada programa con cláusulas vencidas o por vencer; se generan solos a partir del CSV) que filtra ambas tablas; un segundo clic o **↺ Todas** vuelve a mostrar todas. Los badges y KPIs siguen mostrando los totales |
 | Resultados | xlsx + raw data | Indicadores de la Matriz de Resultados agrupados por operación y objetivo, con probabilidad Alta/Media/Baja (tarjetas con conteo y porcentaje del total) y filtro por operación. Los chips de producto crítico se colorean según su estado y, al hacer clic, muestran su(s) adquisición(es) crítica(s) (ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)) |
-| Productos Críticos | xlsx + raw data | Tarjetas con conteo y porcentaje de productos Logrados / En tiempo / Retrasados / Pausados, filtro por operación y tabla de productos. Cada producto muestra el nombre de su(s) adquisición(es) crítica(s) como chip clicable, con detalle de ID de proceso, monto, estado y método |
+| Productos Críticos | xlsx + raw data | Tarjetas con conteo y porcentaje de productos Logrados / En tiempo / Retrasados / Pausados, filtro por operación y tabla de productos. Cada producto muestra el nombre de su(s) adquisición(es) crítica(s) como chip clicable, con detalle de ID de proceso, monto, estado y método, y según la etapa: contratista, monto, firma y fin estimado del contrato, o la fecha esperada de inicio o de firma (ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)) |
 | Equipo | xlsx | Composición del equipo por operación con alerta de roles faltantes. Roles requeridos: Jefe de Equipo, Jefe de Equipo alterno, Abogado, Esp. Adquisiciones, Esp. Financiera, Apoyo Fiduciario, Equipo ESG y 2 Analistas |
 | Documentos | xlsx | Tarjeta por operación con íconos por tipo de documento que enlazan a SharePoint/EZShare (Firma autorizada, PP, POD, LP, LP — Modification, LC, LC — Loan modification, ROP, PF, Ratificación AL, Policy waivers, PEP, Provisionamiento Portal del Cliente). Tipos no reconocidos se muestran con ícono genérico; los documentos sin URL aparecen como "Sin enlace" |
 | PMR | PMR_Historico | Calificaciones (Satisfactorio / Alerta / Problema / Sin calificación) e indicadores técnicos (Desemb., SPI, SPI(a), CPI, CPI(a), Meses 95%, Etapa) del ciclo PMR vigente por programa. Si la clasificación validada difiere de la calculada, la tarjeta muestra ambas con la marca "Ajustada por la COF". Las tarjetas son clicables y muestran la tabla de ciclos anteriores; las que tienen el histórico desactualizado respecto al ciclo vigente muestran una advertencia (ver [Datos de PMR por operación](#datos-de-pmr-por-operación)) |
