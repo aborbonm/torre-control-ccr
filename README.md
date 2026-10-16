@@ -16,9 +16,9 @@ El dashboard lee sus datos al cargarse:
   críticas, equipo, documentos, resultados, comentarios de cláusulas y change log.
 - **`Status Date Clause Operation.csv`** — contiene el estado de cláusulas contractuales,
   descargado desde el tablero de PowerBI del BID.
-- **`Raw Data - <préstamo>.xlsx`** — uno por operación (opcional), con el detalle de los
+- **`clientportal/Raw Data - <préstamo>.xlsx`** — uno por operación (opcional), con el detalle de los
   procesos de adquisición de esa operación. Ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación).
-- **`Contracts and Amendments - <préstamo>.xlsx`** — uno por operación (opcional),
+- **`clientportal/Contracts and Amendments - <préstamo>.xlsx`** — uno por operación (opcional),
   complemento del Raw Data con los contratos registrados en el nuevo módulo de
   contratos del portal. Ver [Contratos del nuevo módulo del portal](#contratos-del-nuevo-módulo-del-portal).
 - **`PMR_Historico.xlsx`** — fuente única del tab **PMR** (calificaciones, indicadores
@@ -76,7 +76,8 @@ El archivo se descarga desde el [Portal de Cliente del BID](https://clientportal
   validarlo: si el navegador ya tenía un archivo con ese nombre, puede agregar un
   `(2)` o `(3)` al final — hay que renombrarlo para que calce con la convención
   (ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)).
-- Sube el archivo **sin modificar nada del raw data**.
+- Súbelo a la carpeta **`clientportal/`** del repositorio (no a la raíz), **sin
+  modificar nada del raw data**.
 
 ### Contracts and Amendments (`Contracts and Amendments - <préstamo>.xlsx`)
 
@@ -86,11 +87,13 @@ módulo de registro de contratos.
 - Hay que descargarlo **junto con** el Raw Data cada vez que se actualice este último:
   los dos se leen juntos (ver [Contratos del nuevo módulo del portal](#contratos-del-nuevo-módulo-del-portal)).
 - Mismas reglas de nombre que el Raw Data: valida que no traiga un `(2)`, `(3)` o
-  `_1` agregado por el navegador, y súbelo **sin modificar nada**.
+  `_1` agregado por el navegador, y súbelo a la carpeta **`clientportal/`**, **sin
+  modificar nada**.
 
 ### Pasos para subir archivos
 
-1. En este repositorio, haz clic en el archivo que deseas reemplazar
+1. En este repositorio, haz clic en el archivo que deseas reemplazar (los Raw Data y
+   Contracts and Amendments están dentro de la carpeta `clientportal/`)
 2. Clic en el ícono de lápiz → **"Upload a new version"** → sube el archivo
 3. Clic en **"Commit changes"**
 
@@ -135,7 +138,7 @@ Esto depende de dos piezas de datos:
    - `Riesgos_Comentarios` solo debería llenarse en filas `Sí` — es lo que se muestra
      en el popup de detalle de esa adquisición.
 
-2. **Archivos `Raw Data - <préstamo>.xlsx`** (uno por operación, en la raíz del repo):
+2. **Archivos `Raw Data - <préstamo>.xlsx`** (uno por operación, en la carpeta `clientportal/` del repo):
    exportados del portal de cliente del BID (reporte "Plan de Adquisiciones"). El
    dashboard usa la hoja `Plan de Adquisiciones` de cada archivo para obtener el
    nombre, monto estimado, estado del proceso y método de adquisición de cada
@@ -185,7 +188,7 @@ reconoce las columnas de ambos formatos, por lo que no debería requerir cambios
 
 ### Cómo agregar el raw data de una operación nueva
 
-1. Sube el archivo `Raw Data - <préstamo>.xlsx` a la raíz del repo, con el nombre
+1. Sube el archivo `Raw Data - <préstamo>.xlsx` a la carpeta `clientportal/` del repo, con el nombre
    exacto según la convención de arriba (mismos pasos de "Pasos para subir archivos").
    Si la operación tiene contratos en el nuevo módulo del portal, sube también su
    `Contracts and Amendments - <préstamo>.xlsx`.
@@ -355,10 +358,12 @@ El dashboard mostrará el comentario más reciente por cláusula en el tab **Cl�
 | `index.html` | Dashboard completo (aplicación de una sola página, sin servidor) |
 | `torre_de_control_CCR.xlsx` | Datos: productos críticos, adquisiciones críticas, equipo, documentos, resultados, comentarios de cláusulas y changelog |
 | `Status Date Clause Operation.csv` | Estado de cláusulas contractuales (fuente: PowerBI BID) |
-| `Raw Data - <préstamo>.xlsx` | Detalle del Plan de Adquisiciones, hitos y contratos por operación (uno por préstamo con datos cargados; ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)) |
-| `Contracts and Amendments - <préstamo>.xlsx` | Contratos registrados en el nuevo módulo del portal, complemento del Raw Data (opcional; ver [Contratos del nuevo módulo del portal](#contratos-del-nuevo-módulo-del-portal)) |
+| `clientportal/Raw Data - <préstamo>.xlsx` | Detalle del Plan de Adquisiciones, hitos y contratos por operación (uno por préstamo con datos cargados; ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)) |
+| `clientportal/Contracts and Amendments - <préstamo>.xlsx` | Contratos registrados en el nuevo módulo del portal, complemento del Raw Data (opcional; ver [Contratos del nuevo módulo del portal](#contratos-del-nuevo-módulo-del-portal)) |
 | `PMR_Historico.xlsx` | Fuente única del tab PMR: calificaciones, indicadores y ciclos históricos, una hoja por operación (ver [Datos de PMR por operación](#datos-de-pmr-por-operación)) |
 | `agreement_report.xlsx` | Fuente única del tab Acuerdos: acuerdos de Revisión de Cartera por operación (ver [Acuerdos de Revisión de Cartera](#acuerdos-de-revisión-de-cartera)) |
+| `clientportal/` | Carpeta que concentra los archivos descargados del Portal de Cliente del BID (Raw Data y Contracts and Amendments). El dashboard los busca **solo** aquí |
+| `pmr reports/` | Insumos base del PMR (reportes operativos en PDF, simuladores PMR en Excel e informes de ciclo en Word) para el proceso de actualización del PMR. El dashboard **no** lee esta carpeta |
 | `README.md` | Este archivo |
 | `Manual Torre de Control - CCR.docx` | Versión en Word de este README para quienes actualizan los datos desde la carpeta compartida (debe regenerarse cada vez que cambie el README) |
 | `CLAUDE.md` | Instrucciones del proyecto para Claude Code |

@@ -716,7 +716,8 @@ async function getFromCacheKey(key) {
 
 // ── Raw data por operación (Plan de Adquisiciones) ──
 // Convención de nombre: "Raw Data - <aprobacion con '/' -> '_'>.xlsx", ver datos_ops.aprobacion
-const RAWDATA_BASE_URL = 'https://raw.githubusercontent.com/aborbonm/torre-control-ccr/main/';
+// Los archivos del portal del cliente (Raw Data y Contracts and Amendments) viven en la carpeta clientportal/.
+const RAWDATA_BASE_URL = 'https://raw.githubusercontent.com/aborbonm/torre-control-ccr/main/clientportal/';
 
 function rawDataFileNameFor(aprobacion) {
   return 'Raw Data - ' + aprobacion.replace(/\//g, '_') + '.xlsx';
