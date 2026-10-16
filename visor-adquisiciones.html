@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visor de Adquisiciones — CCR</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Mismos tokens que index.html */
+  :root {
+    --bg:#0a0e1a; --surface:#111827; --surface2:#1a2235; --border:#1f2d45;
+    --accent:#00d4ff; --accent2:#7c3aed; --green:#10b981; --yellow:#f59e0b;
+    --red:#ef4444; --text:#e2e8f0; --muted:#64748b;
+    --mono:'DM Mono',monospace; --sans:'Syne',sans-serif;
+    /* Fases del proceso: paleta categórica validada sobre --surface (modo oscuro) para todos los
+       pares de fases que pueden quedar juntos en una barra (ΔE normal ≥ 15.9, daltonismo ≥ 9.9).
+       Sin amarillo ni rojo: quedan reservados para estado (atraso), como en index.html. */
+    --ph-inicio:#9085e9; --ph-apertura:#0aa5a5; --ph-evaluacion:#949a2b;
+    --ph-adjudicacion:#d55181; --ph-firma:#008300; --ph-ejecucion:#3987e5; --ph-otro:#64748b;
+    --row-h:30px; --label-w:340px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;}
+
+  header{padding:20px 40px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(90deg,#0a0e1a,#0d1424);position:sticky;top:0;z-index:100;}
+  .logo{display:flex;align-items:center;gap:14px;}
+  .logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;}
+  .logo-text{font-size:17px;font-weight:800;letter-spacing:-.5px;}
+  .logo-sub{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:2px;}
+  .back-link{font-family:var(--mono);font-size:11px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:5px 12px;border-radius:100px;text-decoration:none;white-space:nowrap;}
+  .back-link:hover{color:var(--accent);border-color:var(--accent);}
+
+  main{padding:24px 40px 40px;}
+  #loader[hidden]{display:none;}
+  #loader{display:flex;flex-direction:column;align-items:center;gap:14px;padding:80px 0;}
+  .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #loader p{font-family:var(--mono);font-size:12px;color:var(--muted);}
+
+  .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;}
+  .stat-label{font-family:var(--mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+  .stat-value{font-size:28px;font-weight:800;margin:5px 0 3px;}
+  .stat-sub{font-size:11px;color:var(--muted);font-family:var(--mono);}
+  .stat-card.blue .stat-value{color:var(--accent);}
+  .stat-card.red .stat-value{color:var(--red);}
+  .stat-card.yellow .stat-value{color:var(--yellow);}
+  .stat-card.green .stat-value{color:var(--green);}
+
+  .filters{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin-bottom:12px;}
+  .filter-group{display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
+  .filter-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-right:4px;}
+  .filter-op-btn{font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:100px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;}
+  .filter-op-btn.active{background:rgba(0,212,255,.1);border-color:var(--accent);color:var(--accent);}
+  .filter-op-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .search{font-family:var(--mono);font-size:11px;padding:5px 10px;border-radius:100px;border:1px solid var(--border);background:var(--surface);color:var(--text);min-width:200px;}
+  .search:focus{outline:none;border-color:var(--accent);}
+  select.search{min-width:0;cursor:pointer;}
+
+  .legend{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-family:var(--mono);font-size:11px;color:var(--muted);margin:4px 0 14px;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .sw{width:18px;height:10px;border-radius:2px;display:inline-block;}
+  .sw.plan{opacity:.9;}
+  .sw-dia{width:9px;height:9px;transform:rotate(45deg);display:inline-block;border:2px solid var(--muted);}
+  .sw-dia.done{background:var(--muted);}
+  .sw-today{width:2px;height:14px;background:var(--accent);display:inline-block;}
+  .legend-sep{width:1px;height:14px;background:var(--border);}
+
+  /* ── Gantt ── */
+  .gantt{border:1px solid var(--border);border-radius:12px;background:var(--surface);overflow:hidden;}
+  .gantt-scroll{overflow-x:auto;}
+  .gantt-inner{min-width:900px;}
+  .g-head,.g-row{display:grid;grid-template-columns:var(--label-w) 1fr;}
+  .g-head{background:var(--surface2);border-bottom:1px solid var(--border);position:relative;}
+  .g-head .g-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);padding:10px 14px;}
+  .g-axis{position:relative;height:36px;border-left:1px solid var(--border);}
+  .g-tick{position:absolute;top:0;bottom:0;border-left:1px solid var(--border);}
+  .g-tick span{position:absolute;top:4px;left:4px;font-family:var(--mono);font-size:10px;color:var(--muted);white-space:nowrap;}
+  .g-tick.year span{color:var(--text);}
+  .g-tick.minor span{top:20px;}
+  .g-row{border-bottom:1px solid var(--border);cursor:pointer;}
+  .g-row:hover{background:rgba(255,255,255,.02);}
+  .g-row.open{background:var(--surface2);}
+  .g-row .g-label{display:flex;align-items:center;gap:8px;padding:0 10px 0 14px;height:var(--row-h);min-width:0;}
+  .g-id{font-family:var(--mono);font-size:10px;color:var(--accent);flex-shrink:0;}
+  .g-name{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;}
+  .g-crit{font-family:var(--mono);font-size:9px;color:var(--yellow);border:1px solid rgba(245,158,11,.35);border-radius:4px;padding:1px 4px;flex-shrink:0;}
+  .g-late{font-family:var(--mono);font-size:9px;color:var(--red);border:1px solid rgba(239,68,68,.35);border-radius:4px;padding:1px 4px;flex-shrink:0;}
+  .g-track{position:relative;height:var(--row-h);border-left:1px solid var(--border);overflow:hidden;}
+  .g-grid{position:absolute;top:0;bottom:0;border-left:1px solid rgba(31,45,69,.55);pointer-events:none;}
+  .g-today{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);opacity:.75;pointer-events:none;z-index:3;}
+  .g-head .g-today span{position:absolute;bottom:2px;left:4px;font-family:var(--mono);font-size:9px;color:var(--accent);white-space:nowrap;}
+  .seg{position:absolute;top:9px;height:12px;border-radius:2px;z-index:1;}
+  .seg::after{content:'';position:absolute;inset:-6px 0;} /* hit target más alto que la marca */
+  .seg.plan{background-image:repeating-linear-gradient(45deg,rgba(17,24,39,.55) 0 3px,transparent 3px 6px);opacity:.85;}
+  .seg.ejec{top:12px;height:6px;} /* ejecución: barra más delgada (codificación secundaria a la del color) */
+  .seg.late{top:13px;height:4px;background:repeating-linear-gradient(90deg,var(--red) 0 4px,transparent 4px 7px);opacity:.9;}
+  .seg.first{border-top-left-radius:4px;border-bottom-left-radius:4px;}
+  .seg.last{border-top-right-radius:4px;border-bottom-right-radius:4px;}
+  .dia{position:absolute;top:10px;width:10px;height:10px;margin-left:-5px;transform:rotate(45deg);border:2px solid;background:var(--surface);z-index:2;}
+  .dia.done{background:currentColor;}
+  .dia.overdue{box-shadow:0 0 0 2px var(--red);}
+  .dia::after{content:'';position:absolute;inset:-6px;}
+  .clip-l,.clip-r{position:absolute;top:8px;font-size:10px;color:var(--muted);z-index:2;pointer-events:none;}
+  .clip-l{left:2px;} .clip-r{right:2px;}
+
+  .g-detail{grid-column:1 / -1;padding:12px 16px 16px;border-bottom:1px solid var(--border);background:var(--surface2);cursor:default;}
+  .g-detail h4{font-size:13px;font-weight:700;margin-bottom:6px;}
+  .g-meta{font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:10px;display:flex;flex-wrap:wrap;gap:4px 14px;}
+  .g-meta b{color:var(--text);font-weight:500;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  th{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);}
+  td{padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:top;}
+  td.mono{font-family:var(--mono);font-size:11px;white-space:nowrap;}
+  .ph-dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:middle;}
+  .st-ok{color:var(--green);} .st-late{color:var(--red);} .st-plan{color:var(--muted);}
+  .g-empty{padding:30px;text-align:center;font-family:var(--mono);font-size:12px;color:var(--muted);}
+  .g-foot{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:10px;}
+  .contracts{margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;}
+  .contract{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 11px;}
+  .contract b{font-size:12px;display:block;}
+  .contract .m{font-family:var(--mono);font-size:13px;color:var(--accent);margin:2px 0;}
+  .contract .f{font-family:var(--mono);font-size:11px;}
+  .contract .x{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px;}
+
+  #tip{position:fixed;z-index:500;pointer-events:none;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:12px;max-width:320px;box-shadow:0 8px 24px rgba(0,0,0,.45);display:none;}
+  #tip .t1{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:4px;}
+  #tip .t2{font-weight:700;margin-bottom:4px;}
+  #tip .t3{font-family:var(--mono);font-size:11px;color:var(--text);line-height:1.6;}
+
+  @media(max-width:900px){
+    header{padding:14px 16px;} main{padding:16px;}
+    .stat-row{grid-template-columns:repeat(2,1fr);}
+    :root{--label-w:220px;}
+    .search{min-width:0;width:100%;}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <div class="logo-icon">🗼</div>
+    <div>
+      <div class="logo-text">Visor de Adquisiciones</div>
+      <div class="logo-sub">Torre de Control CCR · hitos del Portal de Cliente (propuesta)</div>
+    </div>
+  </div>
+  <a class="back-link" href="index.html">← Torre de Control</a>
+</header>
+
+<main>
+  <div id="loader"><div class="spinner"></div><p id="loader-msg">Cargando datos del portal del cliente…</p></div>
+
+  <div id="app" hidden>
+    <div class="stat-row">
+      <div class="stat-card blue"><div class="stat-label">Procesos mostrados</div><div class="stat-value" id="k-proc">—</div><div class="stat-sub" id="k-proc-sub"></div></div>
+      <div class="stat-card red"><div class="stat-label">Con hitos atrasados</div><div class="stat-value" id="k-late">—</div><div class="stat-sub">Fecha estimada vencida sin fecha real</div></div>
+      <div class="stat-card yellow"><div class="stat-label">Firmas próximos 90 días</div><div class="stat-value" id="k-firma">—</div><div class="stat-sub">Hito "Contrato Firmado" pendiente</div></div>
+      <div class="stat-card green"><div class="stat-label">Contratos en ejecución</div><div class="stat-value" id="k-ejec">—</div><div class="stat-sub">Fin estimado posterior a hoy</div></div>
+    </div>
+
+    <div class="filters">
+      <div class="filter-group" id="f-ops"><span class="filter-label">Operación</span></div>
+    </div>
+    <div class="filters">
+      <div class="filter-group" id="f-estado"><span class="filter-label">Etapa</span></div>
+      <div class="filter-group"><span class="filter-label">Ver</span>
+        <button class="filter-op-btn" id="f-crit" aria-pressed="false">★ Solo adquisiciones críticas</button>
+      </div>
+      <div class="filter-group" id="f-rango"><span class="filter-label">Rango</span></div>
+      <div class="filter-group"><span class="filter-label">Orden</span>
+        <select class="search" id="f-orden">
+          <option value="proximo">Próximo hito</option>
+          <option value="inicio">Fecha de inicio</option>
+          <option value="id">ID del proceso</option>
+        </select>
+      </div>
+      <div class="filter-group" style="flex:1"><input class="search" id="f-q" type="search" placeholder="Buscar por ID o nombre…" aria-label="Buscar proceso"></div>
+    </div>
+
+    <div class="legend" id="legend"></div>
+
+    <div class="gantt"><div class="gantt-scroll"><div class="gantt-inner">
+      <div class="g-head"><div class="g-label">Proceso</div><div class="g-axis" id="g-axis"></div></div>
+      <div id="g-body"></div>
+    </div></div></div>
+    <div class="g-foot" id="g-foot"></div>
+  </div>
+</main>
+<div id="tip" role="tooltip"></div>
+
+<script>
+// ── Fuentes (mismas que index.html) ──
+const BASE = 'https://raw.githubusercontent.com/aborbonm/torre-control-ccr/main/';
+const EXCEL_URL = BASE + 'torre_de_control_CCR.xlsx';
+const PORTAL_URL = BASE + 'clientportal/';
+
+// ── Fases: cada hito del portal se asigna a una fase (orden fijo = orden de color) ──
+const PHASES = [
+  { key: 'inicio',       label: 'Inicio / publicación',    re: /publicaci[oó]n del (aea|aviso)|invitaci[oó]n|^solicitud de|^inicio$/i },
+  { key: 'apertura',     label: 'Apertura de ofertas',     re: /apertura/i },
+  { key: 'evaluacion',   label: 'Evaluación',              re: /evaluaci[oó]n/i },
+  { key: 'adjudicacion', label: 'Adjudicación',            re: /adjudicaci[oó]n/i },
+  { key: 'firma',        label: 'Firma del contrato',      re: /contrato firmado/i },
+  { key: 'ejecucion',    label: 'Ejecución del contrato',  re: /^final$/i },
+];
+const PH_OTRO = { key: 'otro', label: 'Otro hito', re: null };
+const phaseOf = nombre => PHASES.find(p => p.re.test(nombre)) || PH_OTRO;
+const phColor = key => `var(--ph-${key})`;
+
+const ETAPAS = [
+  { key: 'previsto', label: 'Previstos' },
+  { key: 'curso',    label: 'En curso' },
+  { key: 'ejec',     label: 'Contrato en ejecución' },
+  { key: 'cerrado',  label: 'Cerrados / cancelados' },
+];
+const etapaOf = estado => {
+  const e = String(estado || '').toLowerCase();
+  if (/previsto/.test(e)) return 'previsto';
+  if (/cancel|desierto|rechazo|rescindido|completada/.test(e)) return 'cerrado';
+  if (/contrato en ejecuci/.test(e)) return 'ejec';
+  return 'curso';
+};
+const RANGOS = [
+  { key: '1a',   label: '1 año',   from: -6,  to: 6 },
+  { key: '2a',   label: '2 años',  from: -9,  to: 15 },
+  { key: 'todo', label: 'Todo',    from: null, to: null },
+];
+
+// ── Utilidades (copiadas de index.html para leer igual los archivos) ──
+const s = v => v != null ? String(v).trim() : '';
+function getSheet(wb, keyword) {
+  return wb.Sheets[wb.SheetNames.find(n => n.toLowerCase().includes(keyword.toLowerCase()))] || null;
+}
+function sheetToArr(ws) {
+  if (!ws || !ws['!ref']) return [];
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  const rows = [];
+  for (let r = range.s.r; r <= range.e.r; r++) {
+    const row = [];
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const cell = ws[XLSX.utils.encode_cell({r,c})];
+      row.push(cell ? cell.v : null);
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+function colIdx(hdr, ...names) {
+  for (const n of names) { const i = hdr.indexOf(n); if (i >= 0) return i; }
+  return -1;
+}
+function normalizeContractId(idContrato, idProceso) {
+  const k = idProceso ? idContrato.indexOf(idProceso) : -1;
+  return k > 0 ? idContrato.slice(k) : idContrato;
+}
+function asDate(v) {
+  if (v instanceof Date) return new Date(Date.UTC(v.getFullYear(), v.getMonth(), v.getDate()));
+  if (typeof v === 'number') return new Date(Date.UTC(1970, 0, 1 + Math.round(v - 25569)));
+  return null;
+}
+function fmtDate(v) {
+  const d = asDate(v);
+  return d ? d.toLocaleDateString('es-CR', {day:'2-digit', month:'short', year:'numeric', timeZone:'UTC'}) : '—';
+}
+function fmtMoneda(v, moneda) {
+  if (v == null || v === '') return '—';
+  const n = Number(v);
+  if (Number.isNaN(n)) return String(v);
+  try { return n.toLocaleString('es-CR', { style: 'currency', currency: moneda || 'USD', currencyDisplay: 'code', maximumFractionDigits: 0 }); }
+  catch (e) { return (moneda ? moneda + ' ' : '') + n.toLocaleString('es-CR', { maximumFractionDigits: 0 }); }
+}
+function escHtml(t) {
+  return String(t == null ? '' : t).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+const DAY = 86400000;
+const TODAY = (() => { const n = new Date(); return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())); })();
+const addMonths = (d, m) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + m, 1));
+
+// ── Lectura del portal (misma lógica que index.html) ──
+function parsePlan(rwb) {
+  const map = {};
+  const rows = sheetToArr(getSheet(rwb, 'plan de adquisiciones'));
+  if (!rows.length) return map;
+  const hdr = rows[0].map(h => s(h).toLowerCase());
+  const iId = colIdx(hdr, 'id del proceso'), iNom = colIdx(hdr, 'nombre del proceso');
+  const iMonto = hdr.findIndex(h => h.startsWith('monto estimado'));
+  const iEst = colIdx(hdr, 'estado del proceso'), iMet = colIdx(hdr, 'método de adquisición');
+  const iCat = colIdx(hdr, 'categoría');
+  if (iId < 0) return map;
+  rows.slice(1).forEach(r => {
+    const id = s(r[iId]);
+    if (!id) return;
+    map[id] = {
+      nombre: iNom >= 0 ? s(r[iNom]) : id, monto: iMonto >= 0 ? r[iMonto] : null,
+      estado: iEst >= 0 ? s(r[iEst]) : '', metodo: iMet >= 0 ? s(r[iMet]) : '',
+      categoria: iCat >= 0 ? s(r[iCat]) : '',
+    };
+  });
+  return map;
+}
+function parseHitos(rwb) {
+  const map = {};
+  const rows = sheetToArr(getSheet(rwb, 'hitos'));
+  if (!rows.length) return map;
+  const hdr = rows[0].map(h => s(h).toLowerCase());
+  const iId = colIdx(hdr, 'id del proceso'), iNom = colIdx(hdr, 'nombre del hito');
+  const iEst = colIdx(hdr, 'fecha estimada'), iRe = colIdx(hdr, 'fecha re-estimada'), iReal = colIdx(hdr, 'fecha real');
+  if (iId < 0 || iNom < 0) return map;
+  rows.slice(1).forEach(r => {
+    const id = s(r[iId]);
+    if (!id) return;
+    (map[id] = map[id] || []).push({
+      nombre: s(r[iNom]),
+      est: iEst >= 0 ? asDate(r[iEst]) : null,
+      reest: iRe >= 0 ? asDate(r[iRe]) : null,
+      real: iReal >= 0 ? asDate(r[iReal]) : null,
+    });
+  });
+  return map;
+}
+function parseContratos(rwb, fuente) {
+  const rows = sheetToArr(getSheet(rwb, 'contratos'));
+  if (!rows.length) return [];
+  const hdr = rows[0].map(h => s(h).toLowerCase());
+  const iProc = colIdx(hdr, 'id del proceso'), iCont = colIdx(hdr, 'id del contrato');
+  const iAdj = colIdx(hdr, 'nombre del adjudicado', 'nombre de adjudicatario');
+  const iEst = colIdx(hdr, 'estado del contrato'), iFirma = colIdx(hdr, 'fecha de firma del contrato');
+  const iFin = colIdx(hdr, 'fecha de terminación', 'fecha de fin'), iMon = colIdx(hdr, 'tipo de moneda');
+  const iTot = colIdx(hdr, 'total moneda'), iUsd = colIdx(hdr, 'monto del contrato (usd)');
+  if (iProc < 0 || iCont < 0) return [];
+  const byId = {}, list = [];
+  rows.slice(1).forEach(r => {
+    const idProceso = s(r[iProc]), idRaw = s(r[iCont]);
+    if (!idProceso || !idRaw) return;
+    const useTot = iTot >= 0;
+    const idContrato = normalizeContractId(idRaw, idProceso);
+    const moneda = useTot ? (iMon >= 0 ? s(r[iMon]) : '') : 'USD';
+    const monto = useTot ? r[iTot] : (iUsd >= 0 ? r[iUsd] : null);
+    if (byId[idContrato]) { byId[idContrato].otrosMontos.push({ moneda, monto }); return; }
+    const c = { idProceso, idContrato, adjudicatario: iAdj >= 0 ? s(r[iAdj]) : '', estado: iEst >= 0 ? s(r[iEst]) : '',
+      firma: iFirma >= 0 ? asDate(r[iFirma]) : null, fin: iFin >= 0 ? asDate(r[iFin]) : null,
+      moneda, monto, otrosMontos: [], enmiendas: 0, sinEnmiendas: false, fuente };
+    byId[idContrato] = c; list.push(c);
+  });
+  const wsE = getSheet(rwb, 'enmiendas');
+  const eRows = sheetToArr(wsE);
+  if (!wsE) list.forEach(c => { c.sinEnmiendas = true; });
+  if (eRows.length) {
+    const eh = eRows[0].map(h => s(h).toLowerCase());
+    const eProc = colIdx(eh, 'id del proceso'), eCont = colIdx(eh, 'id del contrato');
+    const eFirma = colIdx(eh, 'fecha de firma de la enmienda');
+    const eFin = colIdx(eh, 'nueva fecha de terminación', 'nueva fecha de fin');
+    const eAcum = eh.findIndex(h => h.startsWith('monto total acumulado') && !/bid|co-fin|contrapartida|local/.test(h));
+    const eAcumUsd = eAcum >= 0 && eh[eAcum].includes('(usd)');
+    const ultima = {};
+    eRows.slice(1).forEach(r => {
+      if (eCont < 0) return;
+      const id = normalizeContractId(s(r[eCont]), eProc >= 0 ? s(r[eProc]) : '');
+      const c = byId[id];
+      if (!c) return;
+      c.enmiendas++;
+      const f = eFirma >= 0 ? asDate(r[eFirma]) : null;
+      const prev = ultima[id];
+      if (!prev || (f && (!prev.f || f >= prev.f))) ultima[id] = { f, r };
+    });
+    Object.entries(ultima).forEach(([id, { r }]) => {
+      const c = byId[id];
+      if (eFin >= 0 && r[eFin]) c.fin = asDate(r[eFin]);
+      if (eAcum >= 0 && r[eAcum] != null && !c.otrosMontos.length && eAcumUsd === (c.moneda === 'USD')) c.monto = r[eAcum];
+    });
+  }
+  return list;
+}
+
+async function fetchBytes(url) {
+  try {
+    const res = await fetch(url + '?t=' + Date.now());
+    return res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
+  } catch (e) { return null; }
+}
+
+// ── Modelo: un proceso con sus hitos y la barra segmentada ──
+function buildProcess(op, id, plan, hitos, contratos, critMap) {
+  const info = plan || { nombre: id, estado: '', metodo: '', monto: null, categoria: '' };
+  const etapa = etapaOf(info.estado);
+  const terminal = etapa === 'cerrado';
+  const marks = (hitos || []).map(h => {
+    const fecha = h.real || h.reest || h.est;
+    const plan = h.reest || h.est;
+    const overdue = !h.real && plan && plan < TODAY && !terminal && !(contratos.length && /contrato firmado/i.test(h.nombre));
+    return { ...h, fecha, plan, overdue, phase: phaseOf(h.nombre) };
+  }).filter(m => m.fecha);
+
+  // Segmentos: del hito anterior al hito actual, del color de la fase del hito que se busca cumplir.
+  const segs = [];
+  let prev = null;
+  marks.forEach(m => {
+    if (prev && m.fecha > prev.fecha) segs.push({ start: prev.fecha, end: m.fecha, phase: m.phase, done: !!m.real, mark: m });
+    if (!prev || m.fecha >= prev.fecha) prev = m;
+  });
+  // Atraso: de la fecha estimada vencida hasta hoy.
+  const late = marks.filter(m => m.overdue).map(m => ({ start: m.plan, end: TODAY, mark: m }));
+
+  // Ejecución del contrato: firma → fin vigente (máximo entre contratos).
+  let ejec = null;
+  if (contratos.length) {
+    const firmaHito = marks.find(m => /contrato firmado/i.test(m.nombre));
+    const firmas = contratos.map(c => c.firma).filter(Boolean);
+    const fines = contratos.map(c => c.fin).filter(Boolean);
+    const start = firmas.length ? new Date(Math.min(...firmas)) : (firmaHito ? firmaHito.fecha : null);
+    const end = fines.length ? new Date(Math.max(...fines)) : null;
+    if (start && end && end > start) ejec = { start, end };
+  }
+
+  const pend = marks.filter(m => !m.real).sort((a, b) => a.fecha - b.fecha)[0] || null;
+  const firmaPend = marks.find(m => /contrato firmado/i.test(m.nombre) && !m.real && !terminal && !contratos.length);
+  const dates = [...marks.map(m => m.fecha), ...(ejec ? [ejec.start, ejec.end] : [])];
+  return {
+    op, id, ...info, etapa, marks, segs, late, ejec, contratos,
+    crit: critMap[op + '|' + id] || null,
+    proximo: pend, firmaPend,
+    inicio: dates.length ? new Date(Math.min(...dates)) : null,
+    finAll: dates.length ? new Date(Math.max(...dates, TODAY)) : null,
+  };
+}
+
+// ── Estado de la vista ──
+let PROCS = [];
+const ST = { op: null, etapas: new Set(['previsto', 'curso']), crit: false, rango: '2a', orden: 'proximo', q: '', open: new Set() };
+
+async function init() {
+  const msg = t => document.getElementById('loader-msg').textContent = t;
+  const xb = await fetchBytes(EXCEL_URL);
+  if (!xb) { msg('No se pudo cargar torre_de_control_CCR.xlsx'); return; }
+  const wb = XLSX.read(xb, { type: 'array', cellDates: true });
+
+  // Operaciones y número de préstamo (datos_ops), y adquisiciones críticas (productos_adquisiciones)
+  const aprobs = {};
+  sheetToArr(getSheet(wb, 'datos_ops')).forEach(r => {
+    const cod = s(r[0]), ap = s(r[1]);
+    if (cod && ap && cod !== 'codigo') (aprobs[cod] = aprobs[cod] || []).push(ap);
+  });
+  const critMap = {};
+  const adq = sheetToArr(getSheet(wb, 'productos_adquisiciones'));
+  const hIdx = adq.findIndex(r => s(r[0]) === 'Operacion');
+  if (hIdx >= 0) adq.slice(hIdx + 1).forEach(r => {
+    if (r[0] != null && /^s[ií]/i.test(s(r[3]))) {
+      const k = s(r[0]) + '|' + s(r[2]);
+      critMap[k] = critMap[k] || [];
+      if (!critMap[k].includes(s(r[1]))) critMap[k].push(s(r[1]));
+    }
+  });
+
+  const ops = Object.keys(aprobs);
+  for (const op of ops) {
+    for (const ap of aprobs[op]) {
+      const name = ap.replace(/\//g, '_');
+      msg('Cargando ' + op + ' (' + ap + ')…');
+      const rb = await fetchBytes(PORTAL_URL + encodeURIComponent('Raw Data - ' + name + '.xlsx'));
+      if (!rb) continue;
+      const rwb = XLSX.read(rb, { type: 'array', cellDates: true });
+      const plan = parsePlan(rwb), hitos = parseHitos(rwb);
+      let contratos = parseContratos(rwb, 'raw');
+      const cb = await fetchBytes(PORTAL_URL + encodeURIComponent('Contracts and Amendments - ' + name + '.xlsx'));
+      if (cb) contratos = contratos.concat(parseContratos(XLSX.read(cb, { type: 'array', cellDates: true }), 'modulo-nuevo'));
+      const porId = {};
+      contratos.forEach(c => { porId[c.idContrato] = c; });
+      const byProc = {};
+      Object.values(porId).forEach(c => { (byProc[c.idProceso] = byProc[c.idProceso] || []).push(c); });
+      const ids = new Set([...Object.keys(plan), ...Object.keys(hitos)]);
+      ids.forEach(id => PROCS.push(buildProcess(op, id, plan[id], hitos[id], byProc[id] || [], critMap)));
+    }
+  }
+  if (!PROCS.length) { msg('No se encontraron archivos Raw Data en clientportal/'); return; }
+
+  buildFilters();
+  document.getElementById('loader').hidden = true;
+  document.getElementById('app').hidden = false;
+  render();
+  window.addEventListener('resize', () => { clearTimeout(window._rt); window._rt = setTimeout(render, 120); });
+}
+
+function buildFilters() {
+  const opsWithData = [...new Set(PROCS.map(p => p.op))];
+  ST.op = opsWithData[0];
+  const fo = document.getElementById('f-ops');
+  opsWithData.forEach(op => {
+    const b = document.createElement('button');
+    b.className = 'filter-op-btn' + (op === ST.op ? ' active' : '');
+    b.textContent = op;
+    b.onclick = () => { ST.op = op; ST.open.clear(); fo.querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b)); render(); };
+    fo.appendChild(b);
+  });
+  const fe = document.getElementById('f-estado');
+  ETAPAS.forEach(e => {
+    const b = document.createElement('button');
+    b.className = 'filter-op-btn' + (ST.etapas.has(e.key) ? ' active' : '');
+    b.setAttribute('aria-pressed', ST.etapas.has(e.key));
+    b.dataset.key = e.key;
+    b.onclick = () => {
+      ST.etapas.has(e.key) ? ST.etapas.delete(e.key) : ST.etapas.add(e.key);
+      b.classList.toggle('active', ST.etapas.has(e.key)); b.setAttribute('aria-pressed', ST.etapas.has(e.key));
+      render();
+    };
+    fe.appendChild(b);
+  });
+  const fr = document.getElementById('f-rango');
+  RANGOS.forEach(r => {
+    const b = document.createElement('button');
+    b.className = 'filter-op-btn' + (r.key === ST.rango ? ' active' : '');
+    b.textContent = r.label;
+    b.onclick = () => { ST.rango = r.key; fr.querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b)); render(); };
+    fr.appendChild(b);
+  });
+  const fc = document.getElementById('f-crit');
+  fc.onclick = () => { ST.crit = !ST.crit; fc.classList.toggle('active', ST.crit); fc.setAttribute('aria-pressed', ST.crit); render(); };
+  document.getElementById('f-orden').onchange = e => { ST.orden = e.target.value; render(); };
+  document.getElementById('f-q').oninput = e => { ST.q = e.target.value.trim().toLowerCase(); render(); };
+
+  document.getElementById('legend').innerHTML =
+    [...PHASES].map(p => `<span><i class="sw" style="background:${phColor(p.key)}${p.key === 'ejecucion' ? ';height:6px' : ''}"></i>${p.label}</span>`).join('') +
+    `<i class="legend-sep"></i>
+     <span><i class="sw" style="background:var(--muted)"></i>Cumplido (fecha real)</span>
+     <span><i class="sw" style="background:var(--muted);background-image:repeating-linear-gradient(45deg,rgba(17,24,39,.55) 0 3px,transparent 3px 6px)"></i>Estimado</span>
+     <span><i class="sw" style="height:4px;background:repeating-linear-gradient(90deg,var(--red) 0 4px,transparent 4px 7px)"></i>Atraso hasta hoy</span>
+     <span><i class="sw-today"></i>Hoy</span>`;
+}
+
+function visible() {
+  return PROCS.filter(p => p.op === ST.op && ST.etapas.has(p.etapa) && (!ST.crit || p.crit) &&
+      (!ST.q || p.id.toLowerCase().includes(ST.q) || p.nombre.toLowerCase().includes(ST.q)))
+    .sort((a, b) => {
+      if (ST.orden === 'id') return a.id.localeCompare(b.id);
+      const ka = ST.orden === 'inicio' ? a.inicio : (a.proximo ? a.proximo.fecha : null);
+      const kb = ST.orden === 'inicio' ? b.inicio : (b.proximo ? b.proximo.fecha : null);
+      if (!ka && !kb) return a.id.localeCompare(b.id);
+      if (!ka) return 1; if (!kb) return -1;
+      return ka - kb;
+    });
+}
+
+function render() {
+  const rows = visible();
+  const opAll = PROCS.filter(p => p.op === ST.op);
+  // KPIs sobre la vista filtrada
+  document.getElementById('k-proc').textContent = rows.length;
+  document.getElementById('k-proc-sub').textContent = `de ${opAll.length} procesos en ${ST.op}`;
+  document.getElementById('k-late').textContent = rows.filter(p => p.late.length).length;
+  document.getElementById('k-firma').textContent = rows.filter(p => p.firmaPend && p.firmaPend.fecha >= TODAY && p.firmaPend.fecha - TODAY <= 90 * DAY).length;
+  document.getElementById('k-ejec').textContent = rows.filter(p => p.ejec && p.ejec.end >= TODAY).length;
+  // Etiquetas de etapa con conteo
+  document.querySelectorAll('#f-estado button').forEach(b => {
+    const e = ETAPAS.find(x => x.key === b.dataset.key);
+    b.textContent = `${e.label} (${opAll.filter(p => p.etapa === e.key).length})`;
+  });
+
+  // Rango temporal
+  const r = RANGOS.find(x => x.key === ST.rango);
+  let t0, t1;
+  if (r.from != null) { t0 = addMonths(TODAY, r.from); t1 = addMonths(TODAY, r.to); }
+  else {
+    const ds = rows.flatMap(p => [p.inicio, p.finAll]).filter(Boolean);
+    t0 = ds.length ? addMonths(new Date(Math.min(...ds)), 0) : addMonths(TODAY, -6);
+    t1 = ds.length ? addMonths(new Date(Math.max(...ds)), 1) : addMonths(TODAY, 6);
+  }
+  const span = t1 - t0;
+  const X = d => ((d - t0) / span) * 100;
+  const clampX = d => Math.max(0, Math.min(100, X(d)));
+
+  // Eje: meses (o trimestres si no caben) con año marcado
+  const axis = document.getElementById('g-axis');
+  const axisW = axis.clientWidth || 800;
+  const months = Math.round(span / (30.44 * DAY));
+  const step = axisW / months >= 46 ? 1 : axisW / months >= 18 ? 3 : 12;
+  let ticks = '', grid = '';
+  for (let d = new Date(t0); d <= t1; d = addMonths(d, 1)) {
+    const m = d.getUTCMonth();
+    if (m % step !== 0 && !(step === 12 && m === 0)) continue;
+    const x = X(d);
+    if (x < 0 || x > 100) continue;
+    const isYear = m === 0;
+    const lbl = step === 12 ? d.getUTCFullYear()
+      : d.toLocaleDateString('es-CR', { month: 'short', timeZone: 'UTC' }).replace('.', '') + (isYear || step >= 3 ? ' ' + String(d.getUTCFullYear()).slice(2) : '');
+    ticks += `<div class="g-tick${isYear ? ' year' : ''}" style="left:${x}%"><span>${lbl}</span></div>`;
+    grid += `<div class="g-grid" style="left:${x}%"></div>`;
+  }
+  const todayIn = TODAY >= t0 && TODAY <= t1;
+  axis.innerHTML = ticks + (todayIn ? `<div class="g-today" style="left:${X(TODAY)}%"><span>hoy</span></div>` : '');
+
+  const body = document.getElementById('g-body');
+  if (!rows.length) {
+    body.innerHTML = `<div class="g-empty">Sin procesos para los filtros seleccionados</div>`;
+    document.getElementById('g-foot').textContent = '';
+    return;
+  }
+  const segHtml = (start, end, cls, color, tipKey) => {
+    if (end < t0 || start > t1) return '';
+    const l = clampX(start), w = Math.max(clampX(end) - l, 0.25);
+    return `<div class="seg ${cls}" style="left:calc(${l}% + 1px);width:calc(${w}% - 2px);background-color:${color}" data-tip="${tipKey}"></div>`;
+  };
+  body.innerHTML = rows.map((p, ri) => {
+    let track = grid;
+    p.segs.forEach((g, i) => {
+      track += segHtml(g.start, g.end, (g.done ? 'done' : 'plan') + (i === 0 ? ' first' : '') + (i === p.segs.length - 1 && !p.ejec ? ' last' : ''),
+        phColor(g.phase.key), `${ri}|s|${i}`);
+    });
+    if (p.ejec) {
+      const mid = p.ejec.end < TODAY ? p.ejec.end : (p.ejec.start > TODAY ? p.ejec.start : TODAY);
+      track += segHtml(p.ejec.start, mid, 'ejec done' + (p.segs.length ? '' : ' first'), phColor('ejecucion'), `${ri}|e|0`);
+      track += segHtml(mid, p.ejec.end, 'ejec plan last', phColor('ejecucion'), `${ri}|e|0`);
+    }
+    p.late.forEach((g, i) => { track += segHtml(g.start, g.end, 'late', 'transparent', `${ri}|l|${i}`); });
+    p.marks.forEach((m, i) => {
+      if (m.fecha < t0 || m.fecha > t1) return;
+      track += `<div class="dia${m.real ? ' done' : ''}${m.overdue ? ' overdue' : ''}" style="left:${X(m.fecha)}%;color:${phColor(m.phase.key)}" data-tip="${ri}|m|${i}"></div>`;
+    });
+    const hasBefore = p.inicio && p.inicio < t0, hasAfter = p.finAll && p.finAll > t1;
+    if (hasBefore) track += `<span class="clip-l">◂</span>`;
+    if (hasAfter) track += `<span class="clip-r">▸</span>`;
+    if (todayIn) track += `<div class="g-today" style="left:${X(TODAY)}%"></div>`;
+    const open = ST.open.has(p.id);
+    return `<div class="g-row${open ? ' open' : ''}" data-row="${ri}" role="button" tabindex="0" aria-expanded="${open}"
+        aria-label="${escHtml(p.id + ' ' + p.nombre)}">
+      <div class="g-label" title="${escHtml(p.nombre)}">
+        <span class="g-id">${escHtml(p.id.replace(p.op + '-', ''))}</span>
+        <span class="g-name">${escHtml(p.nombre)}</span>
+        ${p.late.length ? '<span class="g-late">⚠ atraso</span>' : ''}
+        ${p.crit ? '<span class="g-crit">★ crítica</span>' : ''}
+      </div>
+      <div class="g-track">${track}</div>
+      ${open ? detailHtml(p) : ''}
+    </div>`;
+  }).join('');
+  document.getElementById('g-foot').textContent =
+    `${rows.length} procesos · Fuente: clientportal/ (Raw Data + Contracts and Amendments) · Fecha de cada hito: real, si no re-estimada, si no estimada. Clic en un proceso para ver el detalle.`;
+  window._rows = rows;
+}
+
+function detailHtml(p) {
+  const meta = [
+    ['Estado', p.estado || '—'], ['Método', p.metodo || '—'], ['Categoría', p.categoria || '—'],
+    ['Monto estimado', fmtMoneda(p.monto, 'USD')],
+  ];
+  if (p.crit) meta.push(['Producto crítico', p.crit.join(' · ')]);
+  const hitosRows = p.marks.map(m => {
+    const st = m.real ? `<span class="st-ok">✓ Cumplido</span>`
+      : m.overdue ? `<span class="st-late">⚠ Atrasado ${Math.round((TODAY - m.plan) / DAY)} días</span>`
+      : `<span class="st-plan">Pendiente</span>`;
+    return `<tr><td><i class="ph-dot" style="background:${phColor(m.phase.key)}"></i>${escHtml(m.nombre)}</td>
+      <td class="mono">${fmtDate(m.est)}</td><td class="mono">${fmtDate(m.reest)}</td><td class="mono">${fmtDate(m.real)}</td><td class="mono">${st}</td></tr>`;
+  }).join('');
+  const contratos = p.contratos.map(c => `<div class="contract">
+      <b>${escHtml(c.adjudicatario || '—')}</b>
+      <div class="m">${[{ moneda: c.moneda, monto: c.monto }, ...c.otrosMontos].map(x => fmtMoneda(x.monto, x.moneda)).join(' + ')}</div>
+      <div class="f">Firma: ${fmtDate(c.firma)} · Fin estimado: ${fmtDate(c.fin)}</div>
+      <div class="x">${escHtml(c.idContrato)}${c.estado ? ' · ' + escHtml(c.estado) : ''}${c.enmiendas ? ` · ${c.enmiendas} enmienda${c.enmiendas !== 1 ? 's' : ''}` : ''}${c.sinEnmiendas ? ' · módulo nuevo (sin enmiendas en el exporte)' : ''}</div>
+    </div>`).join('');
+  return `<div class="g-detail" onclick="event.stopPropagation()">
+    <h4>${escHtml(p.id)} — ${escHtml(p.nombre)}</h4>
+    <div class="g-meta">${meta.map(([k, v]) => `<span>${k}: <b>${escHtml(v)}</b></span>`).join('')}</div>
+    ${p.marks.length ? `<table><thead><tr><th>Hito</th><th>Estimada</th><th>Re-estimada</th><th>Real</th><th>Estado</th></tr></thead><tbody>${hitosRows}</tbody></table>`
+      : '<div class="g-meta">Sin hitos registrados en el portal</div>'}
+    ${contratos ? `<div class="contracts">${contratos}</div>` : ''}
+  </div>`;
+}
+
+// ── Interacción: abrir detalle y tooltip ──
+document.addEventListener('click', e => {
+  const row = e.target.closest('.g-row');
+  if (!row || e.target.closest('.g-detail')) return;
+  const p = window._rows[+row.dataset.row];
+  ST.open.has(p.id) ? ST.open.delete(p.id) : ST.open.add(p.id);
+  render();
+});
+document.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('g-row')) { e.preventDefault(); e.target.click(); }
+});
+const tip = document.getElementById('tip');
+document.addEventListener('mousemove', e => {
+  const el = e.target.closest('[data-tip]');
+  if (!el) { tip.style.display = 'none'; return; }
+  const [ri, kind, i] = el.dataset.tip.split('|');
+  const p = window._rows[+ri];
+  let html = '';
+  const fechas = m => `Estimada: ${fmtDate(m.est)}<br>Re-estimada: ${fmtDate(m.reest)}<br>Real: ${fmtDate(m.real)}` +
+    (m.overdue ? `<br><span class="st-late">⚠ Atrasado ${Math.round((TODAY - m.plan) / DAY)} días</span>` : '');
+  if (kind === 's' || kind === 'm') {
+    const m = kind === 's' ? p.segs[+i].mark : p.marks[+i];
+    html = `<div class="t1"><i class="ph-dot" style="background:${phColor(m.phase.key)}"></i>${m.phase.label}</div>
+      <div class="t2">${escHtml(m.nombre)}</div><div class="t3">${fechas(m)}</div>`;
+  } else if (kind === 'e') {
+    const c = p.contratos;
+    html = `<div class="t1"><i class="ph-dot" style="background:${phColor('ejecucion')}"></i>Ejecución del contrato</div>
+      <div class="t2">${escHtml(c.map(x => x.adjudicatario).filter(Boolean).join(' · ') || p.nombre)}</div>
+      <div class="t3">Firma: ${fmtDate(p.ejec.start)}<br>Fin estimado: ${fmtDate(p.ejec.end)}${c.length > 1 ? `<br>${c.length} contratos` : ''}</div>`;
+  } else if (kind === 'l') {
+    const m = p.late[+i].mark;
+    html = `<div class="t1" style="color:var(--red)">⚠ Atraso</div><div class="t2">${escHtml(m.nombre)}</div>
+      <div class="t3">Fecha esperada: ${fmtDate(m.plan)}<br>${Math.round((TODAY - m.plan) / DAY)} días sin fecha real</div>`;
+  }
+  tip.innerHTML = `<div class="t3" style="color:var(--muted);margin-bottom:4px">${escHtml(p.id)}</div>` + html;
+  tip.style.display = 'block';
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - w - 8) + 'px';
+  tip.style.top = (e.clientY + 14 + h > innerHeight ? e.clientY - h - 10 : e.clientY + 14) + 'px';
+});
+
+init();
+</script>
+</body>
+</html>
