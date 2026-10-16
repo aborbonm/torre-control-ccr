@@ -351,11 +351,33 @@ El dashboard mostrará el comentario más reciente por cláusula en el tab **Cl�
 | Acuerdos | agreement_report | Acuerdos de Revisión de Cartera por operación, con estado calculado (Cumplido / En proceso / Retrasado / Eliminado), tarjetas con conteo y porcentaje, gráfico por operación, distribución por estado, filtro por operación y tabla ordenable por fecha (ver [Acuerdos de Revisión de Cartera](#acuerdos-de-revisión-de-cartera)) |
 | Change Log | xlsx | Historial de cambios registrados en la hoja `change log` (fecha, tab, operación y acción; más reciente primero) |
 
+## Visor de adquisiciones (propuesta)
+
+`visor-adquisiciones.html` es una página aparte (no modifica el dashboard) que muestra
+los procesos de adquisición de cada operación como un diagrama de Gantt, a partir de
+los archivos de `clientportal/` (Raw Data + Contracts and Amendments). Se abre en
+`aborbonm.github.io/torre-control-ccr/visor-adquisiciones.html` y tiene un enlace de
+vuelta a la Torre de Control.
+
+- **Una barra por proceso**, segmentada por fase según el hito que se busca cumplir:
+  inicio / publicación, apertura de ofertas, evaluación, adjudicación y firma del
+  contrato (hoja `Hitos`), más la **ejecución del contrato** (de la firma al fin
+  estimado vigente, con enmiendas; barra más delgada).
+- La fecha de cada hito es la **real**; si no hay, la **re-estimada**; si no, la
+  **estimada**. Los tramos cumplidos se ven sólidos y los estimados, rayados.
+- Un hito con fecha estimada vencida y sin fecha real se marca como **atraso** (anillo
+  rojo en el hito y línea punteada roja hasta hoy).
+- Filtros por operación, etapa (previstos, en curso, contrato en ejecución, cerrados),
+  solo adquisiciones críticas (según `productos_adquisiciones`), rango de tiempo y
+  búsqueda. Al hacer clic en un proceso se despliega la tabla de sus hitos y sus
+  contratos.
+
 ## Estructura del repositorio
 
 | Archivo | Descripción |
 |---------|-------------|
 | `index.html` | Dashboard completo (aplicación de una sola página, sin servidor) |
+| `visor-adquisiciones.html` | Propuesta de visor Gantt de procesos de adquisición (ver [Visor de adquisiciones (propuesta)](#visor-de-adquisiciones-propuesta)) |
 | `torre_de_control_CCR.xlsx` | Datos: productos críticos, adquisiciones críticas, equipo, documentos, resultados, comentarios de cláusulas y changelog |
 | `Status Date Clause Operation.csv` | Estado de cláusulas contractuales (fuente: PowerBI BID) |
 | `clientportal/Raw Data - <préstamo>.xlsx` | Detalle del Plan de Adquisiciones, hitos y contratos por operación (uno por préstamo con datos cargados; ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)) |
