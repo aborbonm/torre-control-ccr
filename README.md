@@ -15,7 +15,8 @@ El dashboard lee sus datos al cargarse:
 - **`torre_de_control_CCR.xlsx`** — contiene información de productos críticos, adquisiciones
   críticas, equipo, documentos, resultados, comentarios de cláusulas y change log.
 - **`Status Date Clause Operation.csv`** — contiene el estado de cláusulas contractuales,
-  descargado desde el tablero de PowerBI del BID.
+  descargado desde el tablero de PowerBI del BID. Se actualiza automáticamente cada
+  lunes (ver [CSV](#csv-status-date-clause-operationcsv)).
 - **`clientportal/Raw Data - <préstamo>.xlsx`** — uno por operación (opcional), con el detalle de los
   procesos de adquisición de esa operación. Ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación).
 - **`clientportal/Contracts and Amendments - <préstamo>.xlsx`** — uno por operación (opcional),
@@ -64,9 +65,52 @@ La información se actualiza directamente en el archivo Excel. Reglas importante
 
 ### CSV (`Status Date Clause Operation.csv`)
 
+El CSV se puede actualizar de dos formas. Las dos son válidas: la automática es
+la habitual y la manual sirve cuando se necesita un dato más reciente entre lunes
+o si la automática falla.
+
+#### Actualización automática (todos los lunes)
+
+1. Una **suscripción en PowerBI** al reporte de cláusulas contractuales envía por
+   correo, **todos los lunes a las 9:00 a.m.**, una versión actualizada del CSV como
+   adjunto. La suscripción debe mantener los mismos filtros de la descarga manual
+   (ver abajo).
+2. Un flujo de **Microsoft Power Automate** (*Torre CCR – Actualizar CSV cláusulas*)
+   detecta ese correo y guarda el adjunto en la carpeta de Torre de Control en
+   OneDrive, **sobrescribiendo** `Status Date Clause Operation.csv`. El flujo
+   siempre usa ese nombre exacto, aunque el adjunto llegue con otro.
+3. El CSV actualizado se sube a este repositorio siguiendo los
+   [Pasos para subir archivos](#pasos-para-subir-archivos). El dashboard lee el
+   CSV desde GitHub, así que el flujo por sí solo no cambia lo que muestra la app.
+
+Estructura del flujo, como referencia para revisarlo o recrearlo:
+
+| # | Acción | Configuración |
+|---|---|---|
+| 1 | **When a new email arrives (V3)** (Office 365 Outlook) | Remitente y filtro de asunto del correo de la suscripción; *Include Attachments* = Yes; *Only with Attachments* = Yes |
+| 2 | **Apply to each** | Sobre *Attachments* del paso 1 |
+| 3 | **Condition** | *Attachments Name* **ends with** `.csv` (las acciones siguientes van en la rama *True*) |
+| 4 | **Get file metadata using path** (OneDrive for Business) | Ruta del CSV en la carpeta de Torre de Control |
+| 5 | **Update file** (OneDrive for Business) | *File* = **Id** del paso 4; *File Content* = **Attachments Content** |
+| 6 | **Create file** (OneDrive for Business) | Respaldo si el archivo no existe: carpeta de Torre de Control, nombre `Status Date Clause Operation.csv`, contenido = **Attachments Content**. En *Settings → Run after* de **Update file**: solo *has failed* e *is skipped* |
+
+Si el lunes el CSV no se actualizó (la fecha de modificación del archivo en la
+carpeta no es la del día):
+- Revisa el historial de ejecuciones del flujo en
+  [make.powerautomate.com](https://make.powerautomate.com) → **My flows** → el flujo.
+- Causas habituales: cambió el remitente o el asunto del correo de la suscripción;
+  el correo llegó sin adjunto; venció la conexión de Outlook u OneDrive (se
+  reconecta en **Connections**); o el CSV se borró de la carpeta (el paso 6 lo
+  vuelve a crear, pero conviene volver a seleccionar la ruta en el paso 4).
+- Mientras se resuelve, usa la actualización manual.
+
+#### Actualización manual (descarga desde PowerBI)
+
 El archivo se descarga desde el tablero de cláusulas contractuales del BID:
 - URL: https://app.powerbi.com/groups/d9b55ff5-07fe-4a88-8995-d94ed53cd7cf/rdlreports/429c4230-9c53-46ba-8c96-94ec89aa1cd2
 - Filtros antes de descargar: **Country = Costa Rica**, **Clause Status = ALL**, **Operation Stage = Disbursing**
+- Guarda el archivo con el nombre exacto `Status Date Clause Operation.csv` y súbelo
+  siguiendo los [Pasos para subir archivos](#pasos-para-subir-archivos).
 
 ### Raw Data (`Raw Data - <préstamo>.xlsx`)
 
@@ -379,7 +423,7 @@ vuelta a la Torre de Control.
 | `index.html` | Dashboard completo (aplicación de una sola página, sin servidor) |
 | `visor-adquisiciones.html` | Propuesta de visor Gantt de procesos de adquisición (ver [Visor de adquisiciones (propuesta)](#visor-de-adquisiciones-propuesta)) |
 | `torre_de_control_CCR.xlsx` | Datos: productos críticos, adquisiciones críticas, equipo, documentos, resultados, comentarios de cláusulas y changelog |
-| `Status Date Clause Operation.csv` | Estado de cláusulas contractuales (fuente: PowerBI BID) |
+| `Status Date Clause Operation.csv` | Estado de cláusulas contractuales (fuente: PowerBI BID; llega cada lunes por suscripción y lo copia un flujo de Power Automate) |
 | `clientportal/Raw Data - <préstamo>.xlsx` | Detalle del Plan de Adquisiciones, hitos y contratos por operación (uno por préstamo con datos cargados; ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)) |
 | `clientportal/Contracts and Amendments - <préstamo>.xlsx` | Contratos registrados en el nuevo módulo del portal, complemento del Raw Data (opcional; ver [Contratos del nuevo módulo del portal](#contratos-del-nuevo-módulo-del-portal)) |
 | `PMR_Historico.xlsx` | Fuente única del tab PMR: calificaciones, indicadores y ciclos históricos, una hoja por operación (ver [Datos de PMR por operación](#datos-de-pmr-por-operación)) |
