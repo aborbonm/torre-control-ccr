@@ -448,6 +448,37 @@ vuelta a la Torre de Control.
 | `comentarios_clausulas` | Comentarios asociados a cláusulas vencidas |
 | `change log` | Historial de cambios (`Fecha de revisión`, `Tab de la torre`, `Operación`, `acción lograda`) |
 
+## Skills de Claude que dan soporte a la Torre de Control
+
+Además del dashboard, el proyecto cuenta con *skills* de Claude: instrucciones
+empaquetadas que automatizan tareas recurrentes alrededor de la Torre de Control.
+Se usan desde Claude (app de escritorio o claude.ai), con la carpeta del
+repositorio conectada. Se activan pidiendo la tarea en lenguaje natural (por
+ejemplo, "actualiza la torre con esta ayuda memoria") o por su nombre como
+comando (`/torre-control-...`).
+
+| Skill | Para qué sirve | Entrada | Resultado |
+|---|---|---|---|
+| `torre-control-actualizar-desde-ayuda-memoria` | Incorporar a la Torre lo acordado en una Revisión de Cartera (RGC) ya firmada | Ayuda Memoria en PDF o Word | `torre_de_control_CCR.xlsx` actualizado (productos críticos, probabilidad de logro, adquisiciones críticas, riesgos y change log) |
+| `torre-control-borrador-ayuda-memoria` | Preparar el insumo de la próxima Ayuda Memoria de RGC | Datos vigentes de la Torre (Excel + Raw Data por operación) | Borrador de contenido por operación: productos críticos y su estado, probabilidad de logro, adquisiciones críticas y riesgos |
+| `torre-control-correos-productos-criticos` | Pedir a los jefes de equipo que confirmen productos críticos antes de una RGC | Datos vigentes de la Torre | Un borrador de correo `.eml` por operación, con un Excel adjunto de indicadores, probabilidad de logro y productos críticos |
+| `torre-control-correos-acuerdos` | Dar seguimiento a los acuerdos de revisiones anteriores antes de una RGC | `agreement_report.xlsx` | Un borrador de correo `.eml` por operación, con un Excel adjunto de acuerdos para actualizar estado y proponer nuevas fechas |
+| `torre-control-actualizar-ppt` | Mantener al día el diagrama de cada operación para presentaciones de RGC | PowerPoint existente (o ninguno, para crearlo) + datos de la Torre | Presentación con la relación indicadores → productos críticos → adquisiciones → riesgos, con estado y probabilidad de logro vigentes |
+
+Ciclo típico alrededor de una RGC:
+
+1. **Antes:** `correos-productos-criticos` y `correos-acuerdos` para que los
+   equipos confirmen la información.
+2. **Preparación:** `borrador-ayuda-memoria` y `actualizar-ppt` para armar los
+   insumos de la reunión.
+3. **Después:** `actualizar-desde-ayuda-memoria` para cargar en la Torre lo
+   acordado.
+
+Los skills que modifican archivos (`actualizar-desde-ayuda-memoria` y
+`actualizar-ppt`) dejan el resultado en la carpeta del repositorio. Revísalo y
+súbelo siguiendo los [Pasos para subir archivos](#pasos-para-subir-archivos).
+Los correos se generan como borradores y no se envían solos.
+
 ## Stack tecnológico
 
 - HTML5 + JavaScript (ES6+), sin framework ni servidor
