@@ -275,6 +275,10 @@ los ciclos cronológicamente sin importar el orden de las filas en el archivo.
 Si una operación no tiene hoja en `PMR_Historico.xlsx` (o el archivo no está
 disponible), simplemente no aparece en el tab PMR.
 
+Además de las hojas por operación, el archivo tiene una hoja **`Proyeccion`**
+(ver "Proyección al cierre del año" abajo). Esa hoja no es una operación y no
+genera tarjeta propia.
+
 ### Cómo agregar ciclos históricos
 
 1. Abre `PMR_Historico.xlsx` y ve a la hoja de la operación correspondiente
@@ -306,6 +310,53 @@ clasificación de la tarjeta en los KPI del tab (Satisfactorio / Alerta /
 Problema / Sin calificación) — esos siguen sumando la calificación de la fila
 mostrada en cada tarjeta, y la suma de las 4 categorías sigue siendo igual a
 la cantidad total de tarjetas mostradas.
+
+### Proyección al cierre del año (hoja `Proyeccion`)
+
+La calificación oficial solo se genera en el ciclo de cierre de año (el ciclo
+con corte a junio tiene información parcial del año y no genera calificación).
+Por eso, el ciclo vigente sigue siendo el último cierre de año, y la proyección
+del informe de ciclo PMR más reciente se guarda aparte, en la hoja `Proyeccion`
+de `PMR_Historico.xlsx`. Las hojas por operación guardan solo calificaciones
+oficiales de cierre de año.
+
+La hoja tiene el título en la fila 1, los encabezados en la fila 3 y **una fila
+por operación** desde la fila 4, con columnas:
+`Operación | Corte del seguimiento | Fuente | Calificación sistema al corte (parcial) | SI al corte | Calificación proyectada cierre <año> | Condición / supuesto | ¿Mejora factible? | Comentarios de seguimiento | Plan de acción`.
+
+- `Operación` usa el mismo código que el nombre de la hoja de la operación.
+- `Calificación proyectada cierre <año>` es la calificación más probable al
+  cierre del año según el informe. El dashboard toma el año del encabezado de
+  esta columna (ej. "Calificación proyectada cierre 2026" se muestra como
+  "Proyección cierre 2026"). Puede llevar una nota entre paréntesis, que la
+  tarjeta muestra junto a la calificación (ej. `Satisfactorio (con override)`).
+  Para operaciones finalizadas se escribe `Finalizado`.
+- Los días de etapa 1 (aprobación a vigencia o vigencia a elegibilidad) se
+  mencionan en `Comentarios de seguimiento`; no tienen columna propia.
+
+Cada tarjeta con fila en `Proyeccion` muestra, arriba de los indicadores:
+la calificación vigente → la proyectada al cierre del año, la calificación que
+mostraba el sistema al corte (parcial, solo de referencia), la condición o
+supuesto y si la mejora es factible. Sus `Comentarios de seguimiento` y `Plan
+de acción` reemplazan en la tarjeta a los comentarios y plan de la fila del
+ciclo vigente (que siguen guardados en el histórico). Si una operación no tiene
+fila en `Proyeccion`, su tarjeta se ve como antes.
+
+Debajo de los KPI del tab aparece una franja con la distribución proyectada
+(Satisfactorio / Alerta / Problema / otras), que no altera los KPI del ciclo
+vigente.
+
+**Cómo actualizarla en cada informe de ciclo PMR:**
+
+1. Abre `PMR_Historico.xlsx`, hoja `Proyeccion`.
+2. Reemplaza las filas con los datos del nuevo informe (una por operación) y
+   actualiza `Corte del seguimiento` y `Fuente`. Si cambia el año proyectado,
+   cambia también el año en el encabezado de la columna F.
+3. Cuando se cargue la fila oficial de cierre de año en la hoja de cada
+   operación (ciclo de marzo) y se cambie `PMR_CURRENT_CYCLE`, vacía las filas
+   de `Proyeccion` (o reemplázalas por la nueva proyección), para que la
+   tarjeta no muestre una proyección ya superada.
+4. Sube el archivo actualizado (ver "Pasos para subir archivos").
 
 ## Acuerdos de Revisión de Cartera
 
@@ -391,7 +442,7 @@ El dashboard mostrará el comentario más reciente por cláusula en el tab **Cl�
 | Productos Críticos | xlsx + raw data | Tarjetas con conteo y porcentaje de productos Logrados / En tiempo / Retrasados / Pausados, filtro por operación y tabla de productos. Cada producto muestra el nombre de su(s) adquisición(es) crítica(s) como chip clicable, con detalle de ID de proceso, monto, estado y método, y según la etapa: contratista, monto, firma y fin estimado del contrato, o la fecha esperada de inicio o de firma (ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)) |
 | Equipo | xlsx | Composición del equipo por operación con alerta de roles faltantes. Roles requeridos: Jefe de Equipo, Jefe de Equipo alterno, Abogado, Esp. Adquisiciones, Esp. Financiera, Apoyo Fiduciario, Equipo ESG y 2 Analistas |
 | Documentos | xlsx | Tarjeta por operación con íconos por tipo de documento que enlazan a SharePoint/EZShare (Firma autorizada, PP, POD, LP, LP — Modification, LC, LC — Loan modification, ROP, PF, Ratificación AL, Policy waivers, PEP, Provisionamiento Portal del Cliente). Tipos no reconocidos se muestran con ícono genérico; los documentos sin URL aparecen como "Sin enlace" |
-| PMR | PMR_Historico | Calificaciones (Satisfactorio / Alerta / Problema / Sin calificación) e indicadores técnicos (Desemb., SPI, SPI(a), CPI, CPI(a), Meses 95%, Etapa) del ciclo PMR vigente por programa. Si la clasificación validada difiere de la calculada, la tarjeta muestra ambas con la marca "Ajustada por la COF". Las tarjetas son clicables y muestran la tabla de ciclos anteriores; las que tienen el histórico desactualizado respecto al ciclo vigente muestran una advertencia (ver [Datos de PMR por operación](#datos-de-pmr-por-operación)) |
+| PMR | PMR_Historico | Calificaciones (Satisfactorio / Alerta / Problema / Sin calificación) e indicadores técnicos (Desemb., SPI, SPI(a), CPI, CPI(a), Meses 95%, Etapa) del ciclo PMR vigente por programa. Si la clasificación validada difiere de la calculada, la tarjeta muestra ambas con la marca "Ajustada por la COF". Las tarjetas son clicables y muestran la tabla de ciclos anteriores; las que tienen el histórico desactualizado respecto al ciclo vigente muestran una advertencia. Si la operación tiene fila en la hoja `Proyeccion`, la tarjeta muestra también la calificación proyectada al cierre del año, con los comentarios y el plan de acción del último informe de ciclo PMR, y una franja bajo los KPI resume la distribución proyectada (ver [Datos de PMR por operación](#datos-de-pmr-por-operación)) |
 | Acuerdos | agreement_report | Acuerdos de Revisión de Cartera por operación, con estado calculado (Cumplido / En proceso / Retrasado / Eliminado), tarjetas con conteo y porcentaje, gráfico por operación, distribución por estado, filtro por operación y tabla ordenable por fecha (ver [Acuerdos de Revisión de Cartera](#acuerdos-de-revisión-de-cartera)) |
 | Change Log | xlsx | Historial de cambios registrados en la hoja `change log` (fecha, tab, operación y acción; más reciente primero) |
 
@@ -426,7 +477,7 @@ vuelta a la Torre de Control.
 | `Status Date Clause Operation.csv` | Estado de cláusulas contractuales (fuente: PowerBI BID; llega cada lunes por suscripción y lo copia un flujo de Power Automate) |
 | `clientportal/Raw Data - <préstamo>.xlsx` | Detalle del Plan de Adquisiciones, hitos y contratos por operación (uno por préstamo con datos cargados; ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)) |
 | `clientportal/Contracts and Amendments - <préstamo>.xlsx` | Contratos registrados en el nuevo módulo del portal, complemento del Raw Data (opcional; ver [Contratos del nuevo módulo del portal](#contratos-del-nuevo-módulo-del-portal)) |
-| `PMR_Historico.xlsx` | Fuente única del tab PMR: calificaciones, indicadores y ciclos históricos, una hoja por operación (ver [Datos de PMR por operación](#datos-de-pmr-por-operación)) |
+| `PMR_Historico.xlsx` | Fuente única del tab PMR: calificaciones, indicadores y ciclos históricos, una hoja por operación, más la hoja `Proyeccion` con la calificación proyectada al cierre del año (ver [Datos de PMR por operación](#datos-de-pmr-por-operación)) |
 | `agreement_report.xlsx` | Fuente única del tab Acuerdos: acuerdos de Revisión de Cartera por operación (ver [Acuerdos de Revisión de Cartera](#acuerdos-de-revisión-de-cartera)) |
 | `clientportal/` | Carpeta que concentra los archivos descargados del Portal de Cliente del BID (Raw Data y Contracts and Amendments). El dashboard los busca **solo** aquí |
 | `pmr reports/` | Insumos base del PMR (reportes operativos en PDF, simuladores PMR en Excel e informes de ciclo en Word) para el proceso de actualización del PMR. El dashboard **no** lee esta carpeta |
@@ -447,37 +498,6 @@ vuelta a la Torre de Control.
 | `productos_resultados` | Relación indicador ↔ producto (`Operacion`, `Indicador_ID`, `Producto_Critico`) |
 | `comentarios_clausulas` | Comentarios asociados a cláusulas vencidas |
 | `change log` | Historial de cambios (`Fecha de revisión`, `Tab de la torre`, `Operación`, `acción lograda`) |
-
-## Skills de Claude que dan soporte a la Torre de Control
-
-Además del dashboard, el proyecto cuenta con *skills* de Claude: instrucciones
-empaquetadas que automatizan tareas recurrentes alrededor de la Torre de Control.
-Se usan desde Claude (app de escritorio o claude.ai), con la carpeta del
-repositorio conectada. Se activan pidiendo la tarea en lenguaje natural (por
-ejemplo, "actualiza la torre con esta ayuda memoria") o por su nombre como
-comando (`/torre-control-...`).
-
-| Skill | Para qué sirve | Entrada | Resultado |
-|---|---|---|---|
-| `torre-control-actualizar-desde-ayuda-memoria` | Incorporar a la Torre lo acordado en una Revisión de Cartera (RGC) ya firmada | Ayuda Memoria en PDF o Word | `torre_de_control_CCR.xlsx` actualizado (productos críticos, probabilidad de logro, adquisiciones críticas, riesgos y change log) |
-| `torre-control-borrador-ayuda-memoria` | Preparar el insumo de la próxima Ayuda Memoria de RGC | Datos vigentes de la Torre (Excel + Raw Data por operación) | Borrador de contenido por operación: productos críticos y su estado, probabilidad de logro, adquisiciones críticas y riesgos |
-| `torre-control-correos-productos-criticos` | Pedir a los jefes de equipo que confirmen productos críticos antes de una RGC | Datos vigentes de la Torre | Un borrador de correo `.eml` por operación, con un Excel adjunto de indicadores, probabilidad de logro y productos críticos |
-| `torre-control-correos-acuerdos` | Dar seguimiento a los acuerdos de revisiones anteriores antes de una RGC | `agreement_report.xlsx` | Un borrador de correo `.eml` por operación, con un Excel adjunto de acuerdos para actualizar estado y proponer nuevas fechas |
-| `torre-control-actualizar-ppt` | Mantener al día el diagrama de cada operación para presentaciones de RGC | PowerPoint existente (o ninguno, para crearlo) + datos de la Torre | Presentación con la relación indicadores → productos críticos → adquisiciones → riesgos, con estado y probabilidad de logro vigentes |
-
-Ciclo típico alrededor de una RGC:
-
-1. **Antes:** `correos-productos-criticos` y `correos-acuerdos` para que los
-   equipos confirmen la información.
-2. **Preparación:** `borrador-ayuda-memoria` y `actualizar-ppt` para armar los
-   insumos de la reunión.
-3. **Después:** `actualizar-desde-ayuda-memoria` para cargar en la Torre lo
-   acordado.
-
-Los skills que modifican archivos (`actualizar-desde-ayuda-memoria` y
-`actualizar-ppt`) dejan el resultado en la carpeta del repositorio. Revísalo y
-súbelo siguiendo los [Pasos para subir archivos](#pasos-para-subir-archivos).
-Los correos se generan como borradores y no se envían solos.
 
 ## Stack tecnológico
 

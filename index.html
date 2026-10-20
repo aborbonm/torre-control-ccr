@@ -423,6 +423,9 @@
       <div class="stat-card blue"><div class="stat-label">Sin calificación</div><div class="stat-value" id="pmr-sin">—</div></div>
     </div>
 
+    <!-- Distribución proyectada al cierre del año (hoja Proyeccion de PMR_Historico.xlsx) -->
+    <div id="pmr-proj-strip" style="display:none;margin:-12px 0 24px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;font-family:var(--mono);font-size:11px;color:var(--muted);"></div>
+
     <!-- Cards por programa -->
     <div id="pmr-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;margin-bottom:24px;"></div>
   </div>
@@ -992,6 +995,32 @@ async function loadRawDataMap(wb, useCacheOnly) {
 let _pmrHistoryMap = {}; // codigo -> [{ciclo, estadoPmi, cpi, spi, cpiA, spiA, disb, t3, indSintetico, clasifAuto, clasifValidada, ordenCiclo}]
 const PMR_HISTORY_CACHE_KEY = 'pmr-historico';
 
+// Hoja "Proyeccion" de PMR_Historico.xlsx: una fila por operación con la
+// calificación proyectada como más probable al cierre del año, según el último
+// informe de ciclo PMR. No es una operación (no genera tarjeta propia).
+const PMR_PROJECTION_SHEET = 'Proyeccion';
+let _pmrProjectionMap = {};   // codigo -> {corte, fuente, calSistema, siCorte, calProyectada, condicion, mejora, comentarios, planAccion}
+let _pmrProjectionLabel = 'Proyección cierre del año';
+
+function parsePmrProjectionSheet(ws) {
+  const rows = sheetToArr(ws);
+  const hIdx = rows.findIndex(r => s(r[0]) === 'Operación');
+  const map = {};
+  if (hIdx < 0) return { map, label: null };
+  const hdr = s(rows[hIdx][5]);
+  const label = hdr ? hdr.replace(/^Calificaci[oó]n proyectada/i, 'Proyección').trim() : null;
+  rows.slice(hIdx + 1).forEach(r => {
+    const codigo = s(r[0]);
+    if (!codigo) return;
+    map[codigo] = {
+      corte: s(r[1]), fuente: s(r[2]), calSistema: s(r[3]), siCorte: r[4],
+      calProyectada: s(r[5]), condicion: s(r[6]), mejora: s(r[7]),
+      comentarios: s(r[8]), planAccion: s(r[9]),
+    };
+  });
+  return { map, label };
+}
+
 function ordenCicloFor(ciclo) {
   const m = String(ciclo || '').match(/(Primer|Segundo)\s+per[ií]odo[^\d]*(\d{4})/i);
   if (!m) return 0;
@@ -1046,7 +1075,14 @@ async function loadPmrHistoryMap(useCacheOnly) {
 
   try {
     const pwb = XLSX.read(bytes, { type: 'array', cellDates: true });
+    _pmrProjectionMap = {};
     pwb.SheetNames.forEach(codigo => {
+      if (normalizeCiclo(codigo) === normalizeCiclo(PMR_PROJECTION_SHEET)) {
+        const pr = parsePmrProjectionSheet(pwb.Sheets[codigo]);
+        _pmrProjectionMap = pr.map;
+        if (pr.label) _pmrProjectionLabel = pr.label;
+        return;
+      }
       const cycles = parsePmrHistorySheet(pwb.Sheets[codigo]);
       if (cycles.length) map[codigo] = cycles;
     });
@@ -2284,6 +2320,28 @@ function renderPMR(wb) {
   document.getElementById('pmr-pro').textContent = pro;
   document.getElementById('pmr-sin').textContent = sin;
 
+  // Distribución proyectada al cierre del año (solo operaciones con tarjeta)
+  const projStrip = document.getElementById('pmr-proj-strip');
+  const projCods = codigos.filter(c => _pmrProjectionMap[c] && _pmrProjectionMap[c].calProyectada);
+  if (projCods.length) {
+    const cnt = { s:0, a:0, p:0, o:{} };
+    projCods.forEach(c => {
+      const t = _pmrProjectionMap[c].calProyectada.toUpperCase();
+      if (t.includes('SATISFACTORIO')) cnt.s++;
+      else if (t.includes('ALERTA')) cnt.a++;
+      else if (t.includes('PROBLEMA')) cnt.p++;
+      else { const k = _pmrProjectionMap[c].calProyectada; cnt.o[k] = (cnt.o[k] || 0) + 1; }
+    });
+    const otros = Object.entries(cnt.o).map(([k, n]) => `${n} ${k}`).join(' · ');
+    const fuente = (_pmrProjectionMap[projCods[0]] || {}).fuente || '';
+    projStrip.innerHTML = `<span style="color:var(--accent);text-transform:uppercase;letter-spacing:.06em;">${_pmrProjectionLabel} (más probable)</span>
+      &nbsp; <span style="color:var(--green)">${cnt.s} Satisfactorio</span> · <span style="color:var(--yellow)">${cnt.a} Alerta</span> · <span style="color:var(--red)">${cnt.p} Problema</span>${otros ? ' · ' + otros : ''}
+      ${fuente ? `<span style="float:right;">Fuente: ${fuente}</span>` : ''}`;
+    projStrip.style.display = '';
+  } else {
+    projStrip.style.display = 'none';
+  }
+
   function fmtInd(v) {
     if (v == null) return 'N/A';
     const str = String(v).trim();
@@ -2352,18 +2410,50 @@ function renderPMR(wb) {
         <span style="font-family:var(--mono);font-size:10px;color:var(--yellow);margin-left:2px;">Ajustada por la COF</span>
       </div>` : '';
 
-    const coment = row.comentarios || '';
-    const plan   = row.planAccion || '';
+    // Proyección al cierre del año (hoja Proyeccion). Si existe, sus comentarios
+    // y plan reemplazan a los de la fila del ciclo vigente.
+    const proj = _pmrProjectionMap[prog];
+    let projHtml = '';
+    if (proj && proj.calProyectada) {
+      const nota = (proj.calProyectada.match(/\(([^)]+)\)/) || [])[1] || '';
+      const fmtSi = v => (v == null || v === '') ? '' : (isNaN(parseFloat(v)) ? String(v) : parseFloat(v).toFixed(2).replace('.', ','));
+      const corteTxt = proj.calSistema
+        ? `Sistema al corte ${proj.corte ? '(' + proj.corte + ', parcial)' : '(parcial)'}: ${proj.calSistema}${fmtSi(proj.siCorte) ? ' · SI ' + fmtSi(proj.siCorte) : ''}`
+        : '';
+      projHtml = `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <div>
+            <div class="pmr-section-label" style="margin-bottom:3px;">Vigente (${row.ciclo.replace(/^.*?(\d{4})\s*$/, 'cierre $1')})</div>
+            ${pmrPill(calShow, true)}
+          </div>
+          <div style="color:var(--border);font-size:18px;align-self:center;">→</div>
+          <div>
+            <div class="pmr-section-label" style="margin-bottom:3px;color:var(--accent);">${_pmrProjectionLabel}</div>
+            ${pmrPill(proj.calProyectada, true)}
+          </div>
+          ${nota ? `<span style="font-family:var(--mono);font-size:10px;color:var(--yellow);">${nota}</span>` : ''}
+        </div>
+        ${corteTxt ? `<div style="font-family:var(--mono);font-size:10px;color:var(--muted);">${corteTxt}</div>` : ''}
+        ${proj.condicion ? `<div class="pmr-text"><span style="color:var(--muted);">Condición: </span>${proj.condicion}</div>` : ''}
+        ${proj.mejora ? `<div class="pmr-text"><span style="color:var(--muted);">¿Mejora factible? </span>${proj.mejora}</div>` : ''}
+      </div>`;
+    }
+
+    const coment = (proj && proj.comentarios) || row.comentarios || '';
+    const plan   = (proj && proj.planAccion) || row.planAccion || '';
+    const labelComentCard = (proj && proj.comentarios) ? 'Comentarios de seguimiento' : labelComent;
+    const labelPlanCard   = (proj && proj.planAccion)  ? 'Plan de acción' : labelPlan;
 
     const comentHtml = coment ? `
       <div>
-        <div class="pmr-section-label">${labelComent}</div>
+        <div class="pmr-section-label">${labelComentCard}</div>
         <div class="pmr-text">${coment}</div>
       </div>` : '';
 
     const planHtml = plan && plan.toUpperCase() !== 'N/A' ? `
       <div style="background:rgba(0,212,255,.04);border:1px solid rgba(0,212,255,.15);border-radius:8px;padding:10px 12px;">
-        <div class="pmr-section-label" style="color:var(--accent);margin-bottom:4px;">${labelPlan}</div>
+        <div class="pmr-section-label" style="color:var(--accent);margin-bottom:4px;">${labelPlanCard}</div>
         <div class="pmr-text">${plan}</div>
       </div>` : '';
 
@@ -2394,6 +2484,7 @@ function renderPMR(wb) {
       </div>
       <div class="pmr-body">
         ${staleHtml}
+        ${projHtml}
         ${calHtml}
         ${indsHtml}
         ${comentHtml}
