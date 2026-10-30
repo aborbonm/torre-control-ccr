@@ -62,6 +62,10 @@ La información se actualiza directamente en el archivo Excel. Reglas importante
   (no de hipervínculos insertados en la celda)
 - La hoja `comentarios_clausulas` permite registrar comentarios sobre cláusulas
   vencidas (ver sección abajo)
+- En la hoja `equipo` los roles (filas) son fijos: no agregar roles nuevos, solo
+  llenar las celdas de los roles existentes. Las personas se toman de Convergencia
+  (Datos de la Operación → Datos de Responsabilidad); se puede actualizar con el
+  skill `torre-control-equipo-desde-convergencia` (ver [Skills de Claude](#skills-de-claude-que-dan-soporte-a-la-torre-de-control))
 
 ### CSV (`Status Date Clause Operation.csv`)
 
@@ -491,7 +495,7 @@ vuelta a la Torre de Control.
 |------|-----------|
 | `productos criticos` | Estado de productos por operación (`Operacion`, `Producto Crítico`, `Estado`, `Adquisición Crítica`, `Riesgos/Comentarios`) |
 | `productos_adquisiciones` | Relación producto crítico ↔ ID de proceso de adquisición, con marca de criticidad y riesgo |
-| `equipo` | Roles (filas) y personas asignadas por operación (una columna por operación) |
+| `equipo` | Roles (filas) y personas asignadas por operación (una columna por operación). Filas: Jefe de Equipo, 2× Jefe de Equipo alterno, Abogado, Abogado alterno, Especialista Adquisiciones, Especialista Financiera, 2× Apoyo a la tarea fiduciaria, 2× Equipo de ESG y Analista 1 a 6. Fuente: Convergencia |
 | `documentos` | Matriz de documentos (`Operación`, `Tipo de Documento`, `Nombre / ID`, `URL`) con links a SharePoint (p. ej. Firma autorizada, PP, LC, ROP, PEP, Provisionamiento Portal del Cliente, entre otros) |
 | `datos_ops` | Catálogo de operaciones (código, préstamo y nombre) |
 | `resultados` | Indicadores de la Matriz de Resultados (`Operacion`, `Objetivo_ID`, `Objetivo_Descripcion`, `Indicador_ID`, `Indicador_Descripcion`, `Linea_Base`, `Meta`, `Probabilidad_Logro`) |
@@ -515,6 +519,7 @@ comando (`/torre-control-...`).
 | `torre-control-correos-productos-criticos` | Pedir a los jefes de equipo que confirmen productos críticos antes de una RGC | Datos vigentes de la Torre | Un borrador de correo `.eml` por operación, con un Excel adjunto de indicadores, probabilidad de logro y productos críticos |
 | `torre-control-correos-acuerdos` | Dar seguimiento a los acuerdos de revisiones anteriores antes de una RGC | `agreement_report.xlsx` | Un borrador de correo `.eml` por operación, con un Excel adjunto de acuerdos para actualizar estado y proponer nuevas fechas |
 | `torre-control-actualizar-ppt` | Mantener al día el diagrama de cada operación para presentaciones de RGC | PowerPoint existente (o ninguno, para crearlo) + datos de la Torre | Presentación con la relación indicadores → productos críticos → adquisiciones → riesgos, con estado y probabilidad de logro vigentes |
+| `torre-control-equipo-desde-convergencia` | Mantener la hoja `equipo` alineada con el equipo de operación registrado en Convergencia, para una operación o en un barrido guiado por toda la cartera | Convergencia abierta en Chrome (Claude in Chrome, con la sesión iniciada) + `torre_de_control_CCR.xlsx` | Hoja `equipo` actualizada (columna nueva si la operación no existe) y una entrada en el change log por barrido |
 
 Ciclo típico alrededor de una RGC:
 
@@ -525,10 +530,33 @@ Ciclo típico alrededor de una RGC:
 3. **Después:** `actualizar-desde-ayuda-memoria` para cargar en la Torre lo
    acordado.
 
-Los skills que modifican archivos (`actualizar-desde-ayuda-memoria` y
-`actualizar-ppt`) dejan el resultado en la carpeta del repositorio. Revísalo y
+Los skills que modifican archivos (`actualizar-desde-ayuda-memoria`,
+`actualizar-ppt` y `equipo-desde-convergencia`) dejan el resultado en la carpeta
+del repositorio. Revísalo y
 súbelo siguiendo los [Pasos para subir archivos](#pasos-para-subir-archivos).
 Los correos se generan como borradores y no se envían solos.
+
+### Barrido del equipo desde Convergencia
+
+`torre-control-equipo-desde-convergencia` se usa cuando entra una operación
+nueva o cuando cambia la composición de los equipos (se recomienda un barrido
+antes de cada RGC). En el modo de barrido guiado:
+
+1. Claude arma la lista de operaciones (hoja `equipo` + `datos_ops`) y pregunta
+   cuáles recorrer y si navega por ti en Convergencia o lo haces tú.
+2. Por cada operación abre **Datos de la Operación → Datos de Responsabilidad**,
+   extrae el equipo, lo compara con la Torre y propone los cambios (qué no cambia,
+   qué se actualiza y quién queda fuera por falta de fila).
+3. Tú apruebas, ajustas o saltas cada operación; Claude aplica lo aprobado y
+   guarda el Excel después de cada una.
+4. Al final registra **una sola entrada** en el change log y resume los roles que
+   el tab Equipo marcará como faltantes.
+
+Reglas que aplica: no crea roles nuevos (solo llena las filas existentes); si una
+persona ya no figura en Convergencia propone reemplazarla, sin borrar nada sin tu
+aprobación; en ESG da prioridad a la especialista asignada a la cartera; y si en
+Convergencia la persona de adquisiciones no figura con el rol de "Especialista
+Fiduciario de Adquisiciones", deja esa fila vacía hasta que se corrija allí.
 
 ## Stack tecnológico
 
