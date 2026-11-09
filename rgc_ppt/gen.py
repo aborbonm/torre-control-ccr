@@ -465,9 +465,10 @@ def fila_grupo(S, grupo, cs):
 
 def filas_fuera_del_plan(S):
     """Adquisiciones críticas con texto en la Torre que no tienen un proceso vigente en el plan (por ejemplo, con fondos de contrapartida)."""
-    con_proceso = {c['prod'] for c in S['crit']}; por_texto = {}
+    clave = lambda x: ' '.join(x.split())
+    con_proceso = {clave(c['prod']) for c in S['crit']}; por_texto = {}
     for p in S['prods']:
-        if p.get('estado') != 'Logrado' and p.get('adq') and p['prod'] not in con_proceso:
+        if p.get('estado') != 'Logrado' and p.get('adq') and clave(p['prod']) not in con_proceso:
             por_texto.setdefault(p['adq'], []).append(p)
     filas = []
     for texto, ps in por_texto.items():
