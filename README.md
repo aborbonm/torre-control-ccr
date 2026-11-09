@@ -177,7 +177,7 @@ Esto depende de dos piezas de datos:
 
 1. **Hoja `productos_adquisiciones`** (en `torre_de_control_CCR.xlsx`): relaciona cada
    producto crítico con el o los procesos de adquisición asociados.
-   Columnas: `Operacion | Producto_Critico | ID_Proceso | Adquisicion_Critica | Riesgos_Comentarios`.
+   Columnas: `Operacion | Producto_Critico | ID_Proceso | Adquisicion_Critica | Riesgos_Comentarios | Grupo`.
    - `Producto_Critico` debe coincidir exactamente con el texto de la columna
      `Producto Crítico` de la hoja `productos criticos`.
    - `Adquisicion_Critica` = `Sí` marca esa fila como la adquisición crítica a mostrar
@@ -185,6 +185,10 @@ Esto depende de dos piezas de datos:
      de menor monto que no ameritan seguimiento destacado).
    - `Riesgos_Comentarios` solo debería llenarse en filas `Sí` — es lo que se muestra
      en el popup de detalle de esa adquisición.
+   - `Grupo` (opcional) agrupa varios procesos `Sí` que son acciones paralelas necesarias
+     para un mismo producto (por ejemplo, un equipo de consultores). Las filas con el mismo
+     texto se muestran como un solo chip con el número de procesos; al abrirlo se ven el
+     monto estimado total y el detalle de cada proceso. Basta escribir el riesgo en una fila.
 
 2. **Archivos `Raw Data - <préstamo>.xlsx`** (uno por operación, en la carpeta `clientportal/` del repo):
    exportados del portal de cliente del BID (reporte "Plan de Adquisiciones"). El
