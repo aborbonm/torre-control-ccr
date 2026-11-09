@@ -1,0 +1,77 @@
+{
+ "_nota": "Configuración de la RGC: operaciones de la agenda (en orden), datos de portada y correcciones manuales confirmadas por el equipo que aún no reflejan CI/OPS1.",
+ "corte": "2026-11-03",
+ "operaciones": [
+  "CR-G1008",
+  "CR-L1151",
+  "CR-L1032",
+  "CR-L1139",
+  "CR-L1157",
+  "CR-J0002",
+  "CR-L1137",
+  "CR-L1152",
+  "CR-L1156",
+  "CR-L1160"
+ ],
+ "meta": {
+  "CR-G1008": {
+   "nombre": "Apoyo al componente II del Programa de Agua Potable y Saneamiento y al cumplimiento del ODS 6, a través de proyectos piloto en Costa Rica",
+   "linea": "CR-G1008 · Donación ATN/WS-21927-CR",
+   "je": "Silvia Ortiz Stradtmann",
+   "tipo": "Donación ATN/WS-21927-CR"
+  },
+  "CR-L1151": {
+   "linea": "CR-L1151 · Préstamo 5823/OC-CR",
+   "je": "Mariano Ansaldo",
+   "tipo": "Préstamo 5823/OC-CR"
+  },
+  "CR-L1032": {
+   "linea": "CR-L1032 · Préstamos 3071/OC-CR y 3072/CH-CR",
+   "je": "Mariano Ansaldo",
+   "tipo": "Préstamos 3071/OC-CR y 3072/CH-CR"
+  },
+  "CR-L1139": {
+   "linea": "CR-L1139 · Préstamo 4864/OC-CR",
+   "je": "Mariano Ansaldo",
+   "tipo": "Préstamo 4864/OC-CR"
+  },
+  "CR-L1157": {
+   "linea": "CR-L1157 · Préstamo 6061/OC-CR",
+   "je": "Edwin Mejía",
+   "tipo": "Préstamo 6061/OC-CR"
+  },
+  "CR-J0002": {
+   "linea": "CR-J0002 · Donación 5777/GR-CR",
+   "je": "Ana María Saiz · Norma Peña",
+   "tipo": "Donación 5777/GR-CR"
+  },
+  "CR-L1137": {
+   "linea": "CR-L1137 · Préstamo 4871/OC-CR",
+   "je": "Norma Peña",
+   "tipo": "Préstamo 4871/OC-CR"
+  },
+  "CR-L1152": {
+   "linea": "CR-L1152 · Préstamo 5967/OC-CR y donación 5968/GR-CR",
+   "je": "Luana Castro",
+   "tipo": "Préstamo 5967/OC-CR y donación 5968/GR-CR"
+  },
+  "CR-L1156": {
+   "linea": "CR-L1156 · Préstamo 6017/OC-CR",
+   "je": "Patricia Jara",
+   "tipo": "Préstamo 6017/OC-CR"
+  },
+  "CR-L1160": {
+   "nombre": "Revitalización Urbana del Centro Histórico de San José",
+   "linea": "CR-L1160 · Pendiente de aprobación",
+   "je": "Martín Soulier Faure",
+   "tipo": "Pendiente de aprobación"
+  }
+ },
+ "manual": {
+  "3071/OC-CR": {
+   "ultimo": "11/NOV/2029",
+   "ext": 36,
+   "_motivo": "prórroga aprobada 05/11/2026"
+  }
+ }
+}
