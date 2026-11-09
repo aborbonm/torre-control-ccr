@@ -129,7 +129,7 @@ def adq_text(S, p):
     if procs: return ' / '.join(c['nombre'] for c in procs[:2])
     gone = [c for c in S['crit'] if c['prod'] == p['prod'] and c.get('eliminado')]
     if gone: return gone[0]['eliminado']['nombre'] + (' y otros' if len(gone) > 1 else '') + ' (retirado del plan de adquisiciones)'
-    return 'Sin adquisición crítica registrada'
+    return 'No aplica (producto logrado)' if p.get('estado') == 'Logrado' else 'Sin adquisición crítica registrada'
 
 def risk_list(S, p):
     rs = [x['riesgo'] for x in S['prod_adq'].get(p['prod'], []) if x.get('critica') == 'Sí' and x.get('riesgo')]
