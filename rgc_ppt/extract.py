@@ -51,7 +51,7 @@ for r in rows(wb, 'productos_resultados')[2:]:
 # productos_adquisiciones
 for r in rows(wb, 'productos_adquisiciones')[2:]:
     if r[0] in out:
-        out[r[0]].setdefault('prod_adq', []).append(dict(prod=r[1], pid=r[2], critica=r[3], riesgo=r[4]))
+        out[r[0]].setdefault('prod_adq', []).append(dict(prod=r[1], pid=r[2], critica=r[3], riesgo=r[4], grupo=(r[5] if len(r) > 5 else None)))
 
 # Raw Data disponible por operación
 for op in OPS:
@@ -218,13 +218,13 @@ for op, codes in RAW.items():
         p = plan.get(pa['pid'])
         if not p:
             pc_ = pcom.get(pa['pid'])
-            crit.append(dict(pid=pa['pid'], prod=pa['prod'], nombre=None, riesgo=pa['riesgo'],
+            crit.append(dict(pid=pa['pid'], prod=pa['prod'], nombre=None, riesgo=pa['riesgo'], grupo=pa.get('grupo'),
                              eliminado=dict(nombre=pc_['nombre'], fecha=pc_['f'].strftime('%d/%m/%Y') if pc_['f'] else '', com=pc_['com']) if pc_ else None)); continue
         f, lab = firma(pa['pid'])
         monto = sum(c['monto'] for c in contratos if c['pid'] == pa['pid']) or float(p['Monto del Contrato (USD)'] or p['Monto Estimado (USD)'] or 0)
         crit.append(dict(pid=pa['pid'], prod=pa['prod'], nombre=p['Nombre del Proceso'], metodo=abbr(p['Método de Adquisición']),
                          monto=monto, estado=p['Estado del Proceso'], firma=f.strftime('%d/%m/%Y') if f else None, firma_tipo=lab,
-                         riesgo=pa['riesgo']))
+                         riesgo=pa['riesgo'], grupo=pa.get('grupo')))
     out[op]['crit'] = crit
     out[op]['raw'] = True
 

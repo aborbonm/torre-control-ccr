@@ -439,9 +439,50 @@ def prod_rows(S):
                      '[Unidad Ejecutora]' if atr else '—', '[UE] · [fecha]' if atr else '—'])
     return rows
 
+def adq_unidades(S):
+    """Adquisiciones críticas a mostrar: un proceso, o todos los procesos de un mismo Grupo como una sola."""
+    unidades = {}
+    for c in S['crit']:
+        unidades.setdefault(('g', c['grupo']) if c.get('grupo') else ('p', c['pid']), []).append(c)
+    return unidades
+
+def estado_grupo(cs):
+    cuenta = {}
+    for c in cs: cuenta[c.get('estado') or 'Sin estado'] = cuenta.get(c.get('estado') or 'Sin estado', 0) + 1
+    etiqueta = {'Contrato en ejecución': 'en ejecución', 'Previsto': 'por iniciar', 'Proceso en Curso': 'en curso'}
+    return cs[0].get('estado') if len(cuenta) == 1 else ' · '.join(f'{n} {etiqueta.get(e, e.lower())}' for e, n in cuenta.items())
+
+def fila_grupo(S, grupo, cs):
+    met = {c.get('metodo') for c in cs}
+    fechas = [(dt.datetime.strptime(c['firma'], '%d/%m/%Y'), c['firma_tipo']) for c in cs if c.get('firma')]
+    firma = '—'
+    if fechas:
+        f, tipo = max(fechas, key=lambda x: x[0])
+        firma = f"Hasta {f.strftime('%d/%m/%Y')} ({tipo})"
+    riesgo = next((c['riesgo'] for c in cs if c.get('riesgo')), None)
+    return [f'{grupo} ({len(cs)} procesos)', diag.compact(cs[0]['prod'], [q['prod'] for q in S['prods']], 30), met.pop() if len(met) == 1 else 'Varios',
+            mm(sum(c.get('monto') or 0 for c in cs), 2).replace('USD ', ''), estado_grupo(cs), firma, short(riesgo, 80) if riesgo else '[UE]', '[UE]']
+
+def filas_fuera_del_plan(S):
+    """Adquisiciones críticas con texto en la Torre que no tienen un proceso vigente en el plan (por ejemplo, con fondos de contrapartida)."""
+    clave = lambda x: ' '.join(x.split())
+    con_proceso = {clave(c['prod']) for c in S['crit']}; por_texto = {}
+    for p in S['prods']:
+        if p.get('estado') != 'Logrado' and p.get('adq') and clave(p['prod']) not in con_proceso:
+            por_texto.setdefault(p['adq'], []).append(p)
+    filas = []
+    for texto, ps in por_texto.items():
+        nombres = ' / '.join(diag.compact(p['prod'], [q['prod'] for q in S['prods']], 30) for p in ps)
+        riesgo = next((p['riesgo'] for p in ps if p.get('riesgo')), None)
+        filas.append([texto, nombres, '—', '—', 'Fuera del plan de adquisiciones', '—', short(riesgo, 80) if riesgo else '[UE]', '[UE]'])
+    return filas
+
 def adq_rows(S):
     rows = []; seen = set()
-    for c in S['crit']:
+    for (tipo, clave), cs in adq_unidades(S).items():
+        if tipo == 'g':
+            rows.append(fila_grupo(S, clave, cs)); continue
+        c = cs[0]
         if c['pid'] in seen: continue
         seen.add(c['pid'])
         if not c.get('nombre'):
@@ -453,6 +494,9 @@ def adq_rows(S):
         f = f"{c['firma']} ({c['firma_tipo']})" if c['firma'] else '—'
         rows.append([f"{c['pid']} · {diag.compact(c['nombre'], [x.get('nombre') for x in S['crit']], 58)}", diag.compact(c['prod'], [q['prod'] for q in S['prods']], 30), c['metodo'], mm(c['monto'], 2).replace('USD ', ''), c['estado'], f,
                      short(c['riesgo'], 80) if c['riesgo'] else '[UE]', '[UE]'])
+    if S['d'].get('raw'):
+        rows += filas_fuera_del_plan(S)
+        if not rows: rows.append(['Sin adquisiciones críticas vigentes', '—', '—', '—', '—', '—', '—', '—'])
     return rows
 
 def f_compromisos(s, S, pg, rows):
@@ -529,8 +573,9 @@ def f_hallazgos(s, S, pg):
     pl = lambda n, a, b: f'{n} {a if n == 1 else b}'
     set_text(s, 9, f"{pl(ret, 'producto retrasado', 'productos retrasados')} y {pl(pau, 'pausado', 'pausados')}" if prods else '[Productos cancelados o pausados]')
     if S['crit']:
-        sc = sum(1 for c in S['crit'] if c.get('estado') in ('Previsto', 'Proceso en Curso'))
-        set_text(s, 13, f'{sc} de {len(set(c["pid"] for c in S["crit"]))} críticos sin contrato')
+        unidades = adq_unidades(S)
+        sc = sum(1 for cs in unidades.values() if all(c.get('estado') in ('Previsto', 'Proceso en Curso') for c in cs))
+        set_text(s, 13, f'{sc} de {len(unidades)} críticos sin contrato')
     adq = [L['adq'] for L in S['loans'] if L.get('adq')]
     if adq: set_text(s, 14, f"{adq[0]['exp_n']} procesos con fechas expiradas")
     if S['d'].get('raw'):
