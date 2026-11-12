@@ -129,7 +129,8 @@ def adq_text(S, p):
     if procs: return ' / '.join(c['nombre'] for c in procs[:2])
     gone = [c for c in S['crit'] if c['prod'] == p['prod'] and c.get('eliminado')]
     if gone: return gone[0]['eliminado']['nombre'] + (' y otros' if len(gone) > 1 else '') + ' (retirado del plan de adquisiciones)'
-    return 'No aplica (producto logrado)' if p.get('estado') == 'Logrado' else 'Sin adquisición crítica registrada'
+    # producto logrado sin adquisición: no se dibuja caja ni conector de adquisiciones
+    return None if p.get('estado') == 'Logrado' else 'Sin adquisición crítica registrada'
 
 def risk_list(S, p):
     rs = [x['riesgo'] for x in S['prod_adq'].get(p['prod'], []) if x.get('critica') == 'Sí' and x.get('riesgo')]
@@ -142,7 +143,7 @@ def risk_list(S, p):
 
 def draw(s, S, page, set_title):
     inds, prods = page['inds'], page['prods']
-    ALLP = [q['prod'] for q in S['prods']]; ALLA = [adq_text(S, q) for q in S['prods']]
+    ALLP = [q['prod'] for q in S['prods']]; ALLA = [a for a in (adq_text(S, q) for q in S['prods']) if a]
     obj = inds[0]['obj']
     suf = f" ({page['k'] + 1} de {page['n']})" if page['n'] > 1 else ''
     lead = f"Objetivo específico {page['obj']}: "
@@ -182,7 +183,7 @@ def draw(s, S, page, set_title):
                 line(s, X_META + W_VAL, c, X_PROD, pyc[p['prod']])
     for p in prods:
         c = pyc[p['prod']]
-        line(s, X_PROD + W_PROD, c, X_ADQ, c)
+        if adq_text(S, p): line(s, X_PROD + W_PROD, c, X_ADQ, c)
         if risk_list(S, p): line(s, X_ADQ + W_ADQ, c, X_RSK, c)
     # indicator, base and meta boxes
     for r in inds:
@@ -201,7 +202,7 @@ def draw(s, S, page, set_title):
         box(s, X_PROD, y, W_PROD, ph, C_BOX, fit(compact(p['prod'], ALLP, capacity(W_PROD, ph, fs)), W_PROD, ph, fs), size=fs, color=C_TXT, line=C_BOXL, radius=0.15)
         icon(s, p['estado'], X_PROD + W_PROD - 12, y + ph - 12, 17)
         afs = 8
-        box(s, X_ADQ, y, W_ADQ, ph, C_BOX, fit(compact(adq_text(S, p), ALLA, capacity(W_ADQ, ph, afs)), W_ADQ, ph, afs), size=afs, color=C_TXT, line=C_BOXL,
+        if adq_text(S, p): box(s, X_ADQ, y, W_ADQ, ph, C_BOX, fit(compact(adq_text(S, p), ALLA, capacity(W_ADQ, ph, afs)), W_ADQ, ph, afs), size=afs, color=C_TXT, line=C_BOXL,
             align=PP_ALIGN.LEFT, radius=0.15, inset=6)
         rk = risk_list(S, p)
         if rk:

@@ -665,7 +665,7 @@ def generate(op, outpath):
     for cols in colpages:
         allids = set(x for c in cols for x in c)
         prs_ = [p for p in S['prods'] if set(S['prod_inds'].get(p['prod'], [])) & allids]
-        for i in range(0, max(1, len(prs_)), 8): mpages.append((cols, prs_[i:i + 8]))
+        for i in range(0, max(1, len(prs_)), 6): mpages.append((cols, prs_[i:i + 6]))
     plan[12] = max(1, len(mpages))
     for k in (9, 10, 13, 14):
         if k in pages: plan[k] = len(pages[k])

@@ -40,18 +40,20 @@ for r in eq[3:]:
 for r in rows(wb, 'resultados')[2:]:
     if r[0] in out:
         out[r[0]].setdefault('resultados', []).append(dict(obj_id=str(r[1]), obj=r[2], ind_id=str(r[3]), ind=r[4], base=r[5], meta=r[6], prob=r[7]))
+# los nombres de producto se comparan entre hojas: se quitan espacios al inicio y al final
+def N(x): return x.strip() if isinstance(x, str) else x
 # productos criticos
 for r in rows(wb, 'productos criticos')[1:]:
     if r[1] in out:
-        out[r[1]].setdefault('productos', []).append(dict(prod=r[2], estado=r[3], adq=r[4], riesgo=r[5]))
+        out[r[1]].setdefault('productos', []).append(dict(prod=N(r[2]), estado=r[3], adq=r[4], riesgo=r[5]))
 # productos_resultados
 for r in rows(wb, 'productos_resultados')[2:]:
     if r[0] in out:
-        out[r[0]].setdefault('prod_res', []).append(dict(ind_id=str(r[1]), prod=r[2]))
+        out[r[0]].setdefault('prod_res', []).append(dict(ind_id=str(r[1]), prod=N(r[2])))
 # productos_adquisiciones
 for r in rows(wb, 'productos_adquisiciones')[2:]:
     if r[0] in out:
-        out[r[0]].setdefault('prod_adq', []).append(dict(prod=r[1], pid=r[2], critica=r[3], riesgo=r[4], grupo=(r[5] if len(r) > 5 else None)))
+        out[r[0]].setdefault('prod_adq', []).append(dict(prod=N(r[1]), pid=r[2], critica=r[3], riesgo=r[4], grupo=(r[5] if len(r) > 5 else None)))
 
 # Raw Data disponible por operación
 for op in OPS:
