@@ -1668,12 +1668,25 @@ function adqChipsHtml(op, adqEntries, antesDeAbrir) {
   }).join('');
 }
 
-function renderProductos(wb) {
-  const ws = getSheet(wb, 'producto'); if (!ws) return;
+// Filas de la hoja de productos críticos, independiente de la columna donde empiece la tabla
+// (el rango de la hoja puede ser B2:F74 o A1:F73 según cómo se guarde el Excel).
+// Devuelve filas con 0=Operacion,1=Producto,2=Estado,3=Adquisicion,4=Riesgos.
+function productosRows(wb) {
+  const ws = getSheet(wb, 'producto'); if (!ws) return null;
   const rows = sheetToArr(ws);
-  const hIdx = rows.findIndex(r => r.some(c => String(c||'').toLowerCase().includes('operacion')));
-  // col B start: 0=Operacion,1=Producto,2=Estado,3=Adquisicion,4=Riesgos
-  _prodData = rows.slice(hIdx+1).filter(r => r[0] != null);
+  let hIdx = -1, c0 = 0;
+  rows.some((r, i) => {
+    const c = r.findIndex(x => String(x||'').trim().toLowerCase().startsWith('operacion'));
+    if (c >= 0) { hIdx = i; c0 = c; return true; }
+    return false;
+  });
+  if (hIdx < 0) return [];
+  return rows.slice(hIdx + 1).map(r => r.slice(c0, c0 + 5)).filter(r => r[0] != null && s(r[0]) !== '');
+}
+
+function renderProductos(wb) {
+  const pr = productosRows(wb); if (!pr) return;
+  _prodData = pr;
 
   // Conteos globales
   let log=0, ent=0, ret=0, pau=0;
@@ -2583,11 +2596,7 @@ function closePmrHistoryPopup() {
 
 function renderResumen(wb, csvText) {
   // Products by op
-  const ws = getSheet(wb, 'producto'); if (!ws) return;
-  const rows = sheetToArr(ws);
-  const hIdx = rows.findIndex(r => r.some(c => String(c||'').toLowerCase().includes('operacion')));
-  // col B start: 0=Operacion,2=Estado
-  const data = rows.slice(hIdx+1).filter(r => r[0] != null);
+  const data = productosRows(wb); if (!data) return;
   const byOp = {};
   data.forEach(r => {
     const op = s(r[0]); if (!op) return;
