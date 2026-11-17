@@ -73,5 +73,12 @@
    "ext": 36,
    "_motivo": "prórroga aprobada 05/11/2026"
   }
+ },
+ "supuestos": {
+  "_nota": "Supuestos de análisis por operación que no son datos oficiales; el generador los rotula en la lámina. ext_meses: extensión supuesta del plazo de último desembolso para el ritmo requerido (lámina 5).",
+  "CR-J0002": {
+   "ext_meses": 18,
+   "_motivo": "Sesión previa 16/11/2026: extensión de 18–24 meses en análisis; se usa 18 meses"
+  }
  }
 }

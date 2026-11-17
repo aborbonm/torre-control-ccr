@@ -27,6 +27,20 @@ MES = dict(ENE=1, FEB=2, MAR=3, ABR=4, MAY=5, JUN=6, JUL=7, AGO=8, SEP=9, OCT=10
 
 AGENDA = json.load(open(os.path.join(WORK, 'agenda.json')))
 META = AGENDA['meta']
+# supuestos de análisis por operación (p. ej. {"CR-J0002": {"ext_meses": 18}}): no son datos oficiales, se rotulan en la lámina
+SUPUESTOS = {k: v for k, v in AGENDA.get('supuestos', {}).items() if not k.startswith('_')}
+MESMIN = {1: 'ene', 2: 'feb', 3: 'mar', 4: 'abr', 5: 'may', 6: 'jun', 7: 'jul', 8: 'ago', 9: 'sep', 10: 'oct', 11: 'nov', 12: 'dic'}
+def corte_op(ci):
+    """Fecha de corte de la operación = fecha de creación del informe de Cartera Inteligente usado (ci.json 'fecha')."""
+    f = (ci or {}).get('fecha')
+    try: return _dt.datetime.fromisoformat(f) if f else CORTE
+    except ValueError: return CORTE
+def fcorte(d, num_mes=False):
+    return d.strftime('%d/%m/%Y') if num_mes else f"{d.day:02d}/{MESMIN[d.month]}/{d.year}"
+def add_months(d, n):
+    y, m = divmod(d.month - 1 + n, 12)
+    import calendar
+    return d.replace(year=d.year + y, month=m + 1, day=min(d.day, calendar.monthrange(d.year + y, m + 1)[1]))
 
 # ---------- formatting ----------
 def num(x, d=1):
@@ -147,7 +161,7 @@ def build(op):
         if mo:
             L.update(mo)
             if pdate(L['ultimo']):
-                L['pend'] = max(0, round((pdate(L['ultimo']) - CORTE).days / 30.44)); L['plazo'] = L['transc'] + L['pend']
+                L['pend'] = max(0, round((pdate(L['ultimo']) - corte_op(ci)).days / 30.44)); L['plazo'] = L['transc'] + L['pend']
     res = d.get('resultados', []); prods = d.get('productos', []); pr = d.get('prod_res', [])
     acu = d.get('acuerdos', []); crit = d.get('crit', []); venc = d.get('vencidos', [])
     tot = lambda k: sum(l[k] or 0 for l in loans)
@@ -156,7 +170,7 @@ def build(op):
     prod_adq = {}
     for x in d.get('prod_adq', []):
         prod_adq.setdefault(x['prod'], []).append(x)
-    S = dict(pmr=PMR.get(op, {}), op=op, d=d, ci=ci, m=m, loans=loans, res=res, prods=prods, prod_inds=prod_inds, prod_adq=prod_adq,
+    S = dict(corte=corte_op(ci), sup=SUPUESTOS.get(op, {}), pmr=PMR.get(op, {}), op=op, d=d, ci=ci, m=m, loans=loans, res=res, prods=prods, prod_inds=prod_inds, prod_adq=prod_adq,
              acu=acu, crit=crit, venc=venc,
              vig=tot('vigente'), des=tot('desemb'), pend=tot('pendiente'), anual=tot('anual'), anual_des=tot('anual_desemb'), anual_pend=tot('anual_pend'))
     return S
@@ -179,7 +193,7 @@ def f_cover(s, S, pg):
     # three columns re-laid out so long names fit
     for sid, x, w in ((6, 71, 250), (7, 71, 250), (8, 341, 380), (9, 341, 380), (10, 741, 200), (11, 741, 200)):
         sh = shp(s, sid); sh.left = Emu(int(x * PX)); sh.width = Emu(int(w * PX))
-    set_text(s, 7, m['je']); set_text(s, 9, ci['oe'] if ci else '[Organismo ejecutor]'); set_text(s, 11, '03/nov/2026')
+    set_text(s, 7, m['je']); set_text(s, 9, ci['oe'] if ci else '[Organismo ejecutor]'); set_text(s, 11, fcorte(S['corte']))
 
 def f_general(s, S, pg):
     loans = S['loans']; d = S['d']
@@ -256,59 +270,111 @@ def f_estado(s, S, pg):
     set_text(s, 27, None, mm(L['min_desemb']) if L['min_desemb'] >= 1e5 else usd(L['min_desemb']))
     hb = L.get('habilitado')
     set_text(s, 28, 'Nuevo anticipo: ' + ('Habilitado' if hb else 'No habilitado' if hb is False else 'n.d.'))
-    set_text(s, 29, 'Fuente: Cartera Inteligente, informe extendido al 03/11/2026 (p. 1 y 2)')
+    set_text(s, 29, f"Fuente: Cartera Inteligente, informe extendido al {fcorte(S['corte'], True)} (p. 1 y 2)")
+
+def ritmo(pend, des, ult, prim, corte):
+    """Ritmo requerido (saldo / tiempo que falta) frente al histórico (desembolsado / tiempo desde el primer desembolso)."""
+    years_left = (ult - corte).days / 365.25 if ult else None
+    years_done = (corte - prim).days / 365.25 if prim else None
+    per = 'año' if (years_left or 0) >= 1 else 'mes'; f = 1 if per == 'año' else 12
+    req = pend / years_left / f if years_left and years_left > 0 and pend else None
+    hist = des / years_done / f if years_done and years_done > 0.5 and des else None
+    return dict(years_left=years_left, years_done=years_done, per=per, req=req, hist=hist, ratio=(req / hist if req and hist else None))
+
+def contratado_ok(S):
+    """Contratado combinado (plan de adquisiciones con el monto del contrato cuando es mayor; ver extract.py).
+    Solo se usa si es coherente con lo ya desembolsado; si no, la lámina queda con [__] para completar a mano."""
+    c = S['d'].get('contratado_comb')
+    return c if c and c >= S['des'] else None
+
+def nota(s, x, y, w, h, texto, size=9):
+    """Cuadro de nota en cursiva gris (supuestos y métodos de cálculo)."""
+    from pptx.util import Pt
+    from pptx.dml.color import RGBColor
+    tb = s.shapes.add_textbox(Emu(int(x * PX)), Emu(int(y * PX)), Emu(int(w * PX)), Emu(int(h * PX)))
+    tf = tb.text_frame; tf.word_wrap = True
+    for side in ('margin_left', 'margin_right', 'margin_top', 'margin_bottom'): setattr(tf, side, 0)
+    r = tf.paragraphs[0].add_run(); r.text = texto
+    r.font.size = Pt(size); r.font.italic = True; r.font.color.rgb = RGBColor.from_string('5F6B7A')
+    return tb
 
 def f_financiera(s, S, pg):
     loans = S['loans']; d = S['d']
     L0 = loans[0]
     ult = pdate(L0['ultimo']); prim = pdate(L0['primer'])
-    years_left = (ult - CORTE).days / 365.25 if ult else None
-    years_done = (CORTE - prim).days / 365.25 if prim else None
-    pend = S['pend']; des = S['des']
-    per = 'año' if (years_left or 0) >= 1 else 'mes'; f = 1 if per == 'año' else 12
-    if years_left is not None and 0 < years_left < 0.25 and pend:
+    pend = S['pend']; des = S['des']; corte = S['corte']
+    ext = S['sup'].get('ext_meses')
+    R0 = ritmo(pend, des, ult, prim, corte)
+    R = ritmo(pend, des, add_months(ult, ext), prim, corte) if (ext and ult) else R0
+    years_left, years_done, per = R['years_left'], R['years_done'], R['per']
+    if not ext and years_left is not None and 0 < years_left < 0.25 and pend:
         set_text(s, 7, mm(pend)); set_text(s, 8, f'por desembolsar antes del {L0["ultimo"]}'); S["short_term"] = f"{mm(pend)} por desembolsar antes del {L0['ultimo']}"
         set_text(s, 9, 'Plazo vigente por vencer: ritmo no comparable con el histórico'); req = None
         years_done = None
-    elif years_left and years_left > 0 and pend:
-        req = pend / years_left / f; set_text(s, 7, f'{mm(req)}/{per}')
+    elif R['req']:
+        req = R['req']; set_text(s, 7, f'{mm(req)}/{per}')
     else:
         req = None; set_text(s, 7, 'Sin saldo o plazo vencido' if not pend else 'n.d.')
-    if years_done and years_done > 0.5 and des:
-        hist = des / years_done / f
-        set_text(s, 9, f'Histórico: {mm(hist)}/{per}')
-        set_text(s, 8, f'≈ {num(req / hist, 1)} veces el histórico' if req else 'Sin ritmo requerido')
-        if req: S['ratio'] = req / hist
+    if R['hist']:
+        set_text(s, 9, f"Histórico: {mm(R['hist'])}/{per}")
+        set_text(s, 8, f"≈ {num(R['ratio'], 1)} veces el histórico" if req else 'Sin ritmo requerido')
+        if req: S['ratio'] = R['ratio']
     elif not (years_left is not None and 0 < years_left < 0.25 and pend):
         set_text(s, 9, 'Histórico: sin desembolsos suficientes'); set_text(s, 8, 'Sin histórico comparable')
+    if ext and ult:
+        S['ext_sup'] = ext; S['ratio0'] = R0['ratio']
+        sin = (f"≈ {num(R0['ratio'], 1)} veces" if R0['ratio'] else 'plazo vencido o por vencer')
+        sin_r = f"{mm(R0['req'])}/{R0['per']}, " if R0['req'] else ''
+        nota(s, 83, 218, 532, 16, f"Supuesto: extensión de {ext} meses (último desembolso {add_months(ult, ext).strftime('%d/%m/%Y')}). "
+             f"Sin extensión: {sin_r}{sin}.", 8)
     # component table
     gf = shp(s, 16)
     comps = []
     for L in loans:
         for c in L['comp']: comps.append(c)
-    contr = d.get('contratado_comp', {})
-    def match(name):
-        import difflib
-        best, bv = None, 0
-        for k in contr:
-            if k == 'Otros costos': continue
-            r = difflib.SequenceMatcher(None, name.lower(), k.lower()).ratio()
-            if r > bv: best, bv = k, r
-        return contr[best] if best and bv > 0.6 else None
-    rows = []; tj = tt = 0
+    comb = contratado_ok(S)
+    contr = d.get('contratado_comp', {}) if comb else {}
+    ADM = re.compile(r'administra|gastos|auditor|gesti[oó]n del (proyecto|programa)|otros costos', re.I)
+    import difflib
+    asig = {}
+    libres = [k for k in contr]
     for name, j, p in comps:
-        total = j + p; c = match(name)
-        porpagar = f'{num(max(0, c - j) / 1e6)}' if c is not None else '[__]'
-        porcomp = f'{num(max(0, total - max(c, j)) / 1e6)}' if c is not None else '[__]'
-        rows.append([short(name, 60), num(j / 1e6), porpagar, porcomp, num(total / 1e6)])
-        tj += j; tt += total
+        cand = [(difflib.SequenceMatcher(None, name.lower(), k.lower()).ratio(), k) for k in libres if k != 'Otros costos']
+        cand.sort(reverse=True)
+        if cand and cand[0][0] > 0.6: asig[name] = cand[0][1]; libres.remove(cand[0][1])
+    for name, j, p in comps:
+        # "Otros costos" del plan de adquisiciones = componente de administración / gastos de CI
+        if name not in asig and ADM.search(name) and 'Otros costos' in libres: asig[name] = 'Otros costos'; libres.remove('Otros costos')
+    rows = []; tj = tt = tpp = tpc = 0; completo = bool(contr) and bool(comps)
+    for name, j, p in comps:
+        total = j + p; k = asig.get(name); c = contr.get(k) if k else None
+        if c is None: completo = False
+        pp = max(0, c - j) if c is not None else None
+        pc = max(0, total - max(c, j)) if c is not None else None
+        rows.append([short(name, 60), num(j / 1e6), num(pp / 1e6) if pp is not None else '[__]', num(pc / 1e6) if pc is not None else '[__]', num(total / 1e6)])
+        tj += j; tt += total; tpp += pp or 0; tpc += pc or 0
     if rows:
-        rows.append(([ 'Total', num(tj / 1e6), '[__]', '[__]', num(tt / 1e6)], 4))
+        rows.append(([ 'Total', num(tj / 1e6), num(tpp / 1e6) if completo else '[__]', num(tpc / 1e6) if completo else '[__]', num(tt / 1e6)], 4))
     else:
         rows = [['Sin información por componente en CI', '—', '—', '—', '—']]
     table_rows(gf, rows); fit_bg(s, gf, 15, rows)
     adq = [L['adq'] for L in loans if L.get('adq')]
-    if adq and adq[0]['contratado'] >= des:
+    if comb:
+        porc = max(0, S['vig'] - comb)
+        set_text(s, 19, f"{pct(porc / S['vig'] * 100)} · {mm(porc)}")
+        aj = d.get('ajustes_contratado') or []
+        det = ''
+        if aj and aj[0]['contrato'] - aj[0]['plan'] >= max(2.5e5, 0.02 * comb):
+            a0 = aj[0]
+            det = f" Mayor ajuste: {a0['pid']} ({diag.compact(a0['nombre'], [x['nombre'] for x in aj], 40, generic=True)}), {num(a0['plan'] / 1e6)} MM en el plan → {num(a0['contrato'] / 1e6)} MM del contrato."
+        dif = ''
+        if completo and abs(tpc - porc) >= 1e5:
+            exc = [short(n, 30) for n, j, p in comps if asig.get(n) and contr.get(asig[n], 0) > j + p]
+            dif = (f" La suma por componente ({num(tpc / 1e6)} MM) difiere porque el contratado por componente del plan no coincide con los montos de CI"
+                   + (f" (supera el monto en: {', '.join(exc)})" if exc else '') + '; revisar componentes en el Portal.')
+            print(f"  AVISO {S['op']}: por comprometer tarjeta {num(porc / 1e6)} vs tabla {num(tpc / 1e6)} MM")
+        nota(s, 640, 458, 365, 60, f"Contratado ≈ {mm(comb)}: plan de adquisiciones (misma base que Cartera Inteligente), con el monto del contrato cuando es mayor.{det}{dif}", 8)
+    elif adq and adq[0]['contratado'] >= des:
         porc = max(0, S['vig'] - sum(a['contratado'] for a in adq))
         set_text(s, 19, f"{pct(porc / S['vig'] * 100)} · {mm(porc)}")
     else:
@@ -337,7 +403,7 @@ def f_desemb(s, S, pg):
         set_text(s, 13, f"{mm(S['anual_des'])} · {pct(S['anual_des'] / S['anual'] * 100)}")
     else:
         set_text(s, 10, 'Sin meta registrada'); set_text(s, 13, f"{mm(S['anual_des'])}")
-    set_text(s, 12, 'Desembolsado al 03/nov/2026')
+    set_text(s, 12, f"Desembolsado al {fcorte(S['corte'])}")
     prox = [L['proximo'] for L in S['loans'] if L['proximo'] not in ('N/A', '-')]
     set_text(s, 16, f"{mm(S['anual_pend'])} · {prox[0] if prox else 'sin fecha'}")
     if S['anual'] and S['anual_des'] >= S['anual']:
@@ -433,6 +499,7 @@ def prod_rows(S):
         risks += [x['riesgo'] for x in S['prod_adq'].get(p['prod'], []) if x['riesgo'] and x['critica'] == 'Sí']
         risks = list(dict.fromkeys(risks))
         atr = p['estado'] in ('Retrasado', 'Pausado', 'Cancelado')
+        if p['estado'] == 'Logrado': risks = []  # un producto logrado no tiene riesgo de atraso
         pm = (S['pmr'].get('prod_match') or {}).get(p['prod'])
         af = f"{pm['pct']} % ({clean_num(pm['a'])}/{clean_num(pm['pa'])})" if pm else ('[PMR] %' if S['pmr'].get('outputs') else 'n.d. en PMR')
         rows.append([p['prod'], inds, af, p['estado'] or '—', '; '.join(risks) or ('[Unidad Ejecutora]' if atr else '—'),
@@ -522,9 +589,29 @@ def f_adq(s, S, pg, rows):
     if adq:
         a = adq[0]
         set_text(s, 6, a['clasif']); set_text(s, 9, f"{a['exp_n']} · {usd(a['exp_usd'])}")
-        set_text(s, 12, f"{num(a['contratado'] / 1e6)} / {num(a['pendiente'] / 1e6)} MM")
+        comb = contratado_ok(S)
+        if comb and len(adq) == 1:
+            set_text(s, 12, f"{num(comb / 1e6)} / {num(a['pendiente'] / 1e6)} MM")
+            if abs(comb - a['contratado']) >= 5e4: def_nota(s, 'Contratado: ', 'plan de adquisiciones (misma base que Cartera Inteligente) con el monto del contrato '
+                f"cuando es mayor; Cartera Inteligente reporta {num(a['contratado'] / 1e6)} MM.")
+        else:
+            set_text(s, 12, f"{num(a['contratado'] / 1e6)} / {num(a['pendiente'] / 1e6)} MM")
     if rows:
         gf = shp(s, 14); set_widths(gf, ADQ_W); table_rows(gf, rows); font_size(gf, 10); fit_bg(s, gf, 13, rows, 10)
+def def_nota(s, etiqueta, cuerpo):
+    """Agrega una definición al pie (cuadro de 'Procesos con fechas expiradas:') y lo sube para que no tape la fuente."""
+    for sh in s.shapes:
+        if not sh.has_text_frame: continue
+        ps = sh.text_frame.paragraphs
+        for par in ps:
+            if ''.join(r.text for r in par.runs).startswith('Procesos con fechas expiradas:'):
+                np_ = copy.deepcopy(par._p); par._p.addnext(np_)
+                rs = np_.findall('a:r', NS)
+                rs[0].find('a:t', NS).text = etiqueta; rs[1].find('a:t', NS).text = cuerpo
+                for r in rs[2:]: np_.remove(r)
+                sh.top = Emu(sh.top - int(14 * PX))
+                return
+
 def f_contratos(s, S, pg):
     v = S['venc']
     set_text(s, 6, f"{len(v)} · {mm(sum(x['monto'] for x in v))}")
@@ -551,7 +638,7 @@ def extension(S):
         if all(L['pendiente'] <= 0 for L in S['loans']): return 'Extensión: no requerida para desembolsar (100 % desembolsado); confirmar cierre de actividades'
         return 'Extensión: no aplica aún (sin fecha de último desembolso)'
     L = min(Ls, key=lambda L: pdate(L['ultimo']))
-    exp = pdate(L['ultimo']); months = (exp - CORTE).days / 30.4; pp = L['pendiente'] / L['vigente'] * 100 if L['vigente'] else 0
+    exp = pdate(L['ultimo']); months = (exp - S['corte']).days / 30.4; pp = L['pendiente'] / L['vigente'] * 100 if L['vigente'] else 0
     post = [f for f in S['d'].get('fins', []) if dt.datetime.strptime(f['fin'], '%d/%m/%Y') > exp]
     pmr_txt = (S['pmr'].get('status', '') + ' ' + S['pmr'].get('likelihood', '')).lower()
     pmr_flag = bool(re.search(r'prórroga|prorroga|extensi[oó]n del plazo|ampliaci[oó]n del plazo|requerir[aá] (una )?extensi', pmr_txt)) and L['prestamo'] not in MANUAL
@@ -563,6 +650,12 @@ def extension(S):
     if reasons:
         return f"Extensión: parece necesaria. Vence {L['ultimo']}; " + '; '.join(reasons)
     return f"Extensión: no parece necesaria; {max(0, round(months))} meses de plazo y {round(pp)} % por desembolsar"
+
+def ritmo_txt(S):
+    if S.get('ext_sup'):
+        sin = f" ({num(S['ratio0'], 1)} sin extensión)" if S.get('ratio0') else ''
+        return f"Ritmo ≈ {num(S['ratio'], 1)} veces el histórico con extensión de {S['ext_sup']} meses{sin}"
+    return f"Ritmo requerido ≈ {num(S['ratio'], 1)} veces el histórico"
 
 def f_hallazgos(s, S, pg):
     res = S['res']; prods = S['prods']
@@ -580,13 +673,13 @@ def f_hallazgos(s, S, pg):
     if adq: set_text(s, 14, f"{adq[0]['exp_n']} procesos con fechas expiradas")
     if S['d'].get('raw'):
         v = S['venc']; set_text(s, 18, (f"{len(v)} contratos vencidos" if len(v) != 1 else '1 contrato vencido') if v else 'Sin contratos vencidos')
-    if S.get('ratio'): set_text(s, 23, f"Ritmo requerido ≈ {num(S['ratio'], 1)} veces el histórico")
+    if S.get('ratio'): set_text(s, 23, ritmo_txt(S))
     if S['anual']:
         set_text(s, 24, f"Desembolsos 2026: {pct(S['anual_des'] / S['anual'] * 100)} de la meta")
     from pptx.util import Pt
     t23, t24 = shp(s, 23), shp(s, 24)
     lines = []
-    if S.get('ratio'): lines.append(f"Ritmo requerido ≈ {num(S['ratio'], 1)} veces el histórico")
+    if S.get('ratio'): lines.append(ritmo_txt(S))
     elif S.get('short_term'): lines.append(S['short_term'])
     if S['anual']: lines.append(f"Desembolsos 2026: {pct(S['anual_des'] / S['anual'] * 100)} de la meta")
     lines.append(extension(S))

@@ -111,13 +111,14 @@ def share(a, b, y0, y1):
     return max(0, (min(b, y1) - max(a, y0)).days) / (b - a).days
 
 for op, codes in RAW.items():
-    plan = {}; ctr = defaultdict(list); enm = defaultdict(list); hit = defaultdict(dict); cna = defaultdict(list); adj = {}; pcom = {}
+    plan = {}; planrows = defaultdict(list); ctr = defaultdict(list); enm = defaultdict(list); hit = defaultdict(dict); cna = defaultdict(list); adj = {}; pcom = {}
     for code in codes:
         w = openpyxl.load_workbook(f'{BASE}/clientportal/Raw Data - {code}.xlsx', read_only=True, data_only=True)
         def tab(s):
             it = w[s].iter_rows(values_only=True); h = next(it)
             return [dict(zip(h, r)) for r in it if any(c is not None for c in r)]
-        for d in tab('Plan de Adquisiciones'): plan[d['ID del Proceso']] = d
+        for d in tab('Plan de Adquisiciones'):
+            plan[d['ID del Proceso']] = d; planrows[d['ID del Proceso']].append(d)
         for d in tab('Contratos'):
             if d['ID del Proceso']: ctr[d['ID del Proceso']].append(d)
         for d in tab('Enmiendas'): enm[d['ID del Contrato']].append(d)
@@ -212,7 +213,35 @@ for op, codes in RAW.items():
     for c in contratos:
         if str(c['estado']).startswith(('Rescind', 'Cancel')): continue
         comp[str(c['comp'])] += c['monto_bid']
-    out[op]['contratado_comp'] = dict(comp)
+    out[op]['contratado_contratos'] = dict(comp)
+    # contratado combinado (regla RGC II-2026): por proceso contratado (en ejecución o completado) se toma el mayor entre
+    #  - el plan de adquisiciones (monto del contrato o, si no hay, el estimado, x % BID): misma base que Cartera Inteligente,
+    #    recoge las extensiones de consultores que el módulo Contracts and Amendments no exporta;
+    #  - la suma de sus contratos (Raw Data + Contracts and Amendments, con enmiendas, sin rescindidos): corrige procesos
+    #    cuyo plan solo tiene el estimado (p. ej. obras contratadas en colones).
+    byp = defaultdict(float)
+    for c in contratos:
+        if str(c['estado']).startswith(('Rescind', 'Cancel')): continue
+        pctc = float(plan.get(c['pid'], {}).get('% Monto BID') or 100) / 100
+        # en procesos cofinanciados, la parte BID de un contrato nunca supera su monto total x % BID del plan
+        byp[c['pid']] += min(c['monto_bid'], c['monto'] * pctc) if pctc < 1 else c['monto_bid']
+    comb = defaultdict(float); ajustes = []; sin_contrato = []
+    for pid, prs in planrows.items():
+        if prs[0].get('Estado del Proceso') not in ('Contrato en ejecución', 'Adquisición completada'): continue
+        # un proceso puede tener varias filas (una por producto o componente) que repiten el monto del contrato:
+        # el contrato se cuenta una sola vez y se reparte entre filas según su monto estimado
+        est = [float(r.get('Monto Estimado (USD)') or 0) for r in prs]; et = sum(est) or 1.0
+        ctm = next((float(r['Monto del Contrato (USD)']) for r in prs if r.get('Monto del Contrato (USD)')), None)
+        vals = [((ctm * e / et) if ctm else e) * float(r.get('% Monto BID') or 100) / 100 for r, e in zip(prs, est)]
+        pv = sum(vals); cv = byp.get(pid, 0.0)
+        f = cv / pv if pv and cv > pv else 1.0
+        for r, v in zip(prs, vals): comb[str(r.get('Componente'))] += v * f
+        if cv - pv >= 50000: ajustes.append(dict(pid=pid, nombre=prs[0].get('Nombre del Proceso'), plan=pv, contrato=cv))
+        if not cv: sin_contrato.append(dict(pid=pid, nombre=prs[0].get('Nombre del Proceso'), plan=pv))
+    out[op]['contratado_comp'] = dict(comb)
+    out[op]['contratado_comb'] = sum(comb.values())
+    out[op]['ajustes_contratado'] = sorted(ajustes, key=lambda a: a['plan'] - a['contrato'])
+    out[op]['contratado_sin_contrato'] = sin_contrato
     # critical processes joined
     crit = []
     for pa in out[op].get('prod_adq', []):

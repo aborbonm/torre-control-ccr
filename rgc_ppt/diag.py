@@ -119,7 +119,14 @@ def plan(S):
             # order products by the first indicator they serve, so lines cross as little as possible
             first = {p['prod']: min(i for i, r in enumerate(ch) if r['ind_id'] in S['prod_inds'].get(p['prod'], [])) for p in ps}
             ps.sort(key=lambda p: first[p['prod']])
-            for i in range(0, max(1, len(ps)), MAX_PROD): sub.append((ch, ps[i:i + MAX_PROD]))
+            for i in range(0, max(1, len(ps)), MAX_PROD):
+                pp = ps[i:i + MAX_PROD]
+                # en cada lámina solo van los indicadores con línea hacia algún producto de esa lámina; los que no tienen
+                # ningún producto en todo el objetivo se muestran en la primera lámina (sin líneas) para que se vea el vacío
+                linked = {x for p in pp for x in S['prod_inds'].get(p['prod'], [])}
+                huerfanos = [r for r in ch if not any(r['ind_id'] in S['prod_inds'].get(p['prod'], []) for p in ps)]
+                ii = [r for r in ch if r['ind_id'] in linked or (i == 0 and r in huerfanos)]
+                sub.append((ii or ch, pp))
         for k, (ch, ps) in enumerate(sub): pages.append(dict(obj=o, inds=ch, prods=ps, k=k, n=len(sub)))
     return pages
 
@@ -133,6 +140,7 @@ def adq_text(S, p):
     return None if p.get('estado') == 'Logrado' else 'Sin adquisición crítica registrada'
 
 def risk_list(S, p):
+    if p.get('estado') == 'Logrado': return []  # un producto logrado no tiene riesgo de atraso
     rs = [x['riesgo'] for x in S['prod_adq'].get(p['prod'], []) if x.get('critica') == 'Sí' and x.get('riesgo')]
     if not rs and p.get('riesgo'): rs = [p['riesgo']]
     out = []
