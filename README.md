@@ -25,6 +25,10 @@ El dashboard lee sus datos al cargarse:
 - **`PMR_Historico.xlsx`** — fuente única del tab **PMR** (calificaciones, indicadores
   y ciclos históricos). Sin este archivo el tab PMR no muestra tarjetas, pero el
   resto del dashboard sigue funcionando igual. Ver [Datos de PMR por operación](#datos-de-pmr-por-operación).
+- **`flujo_mensual/Flujo mensual - <préstamo>.xlsx`** — uno por operación (opcional), exportado del
+  MS Project (PEP-SMART). Alimenta el tab **Contratos Críticos** (contratos críticos y
+  comparación mensual de pagos contra la línea base). Ver
+  [Contratos críticos y monitoreo de pagos](#contratos-críticos-y-monitoreo-de-pagos).
 - **`agreement_report.xlsx`** — fuente única del tab **Acuerdos** (acuerdos de las
   Revisiones de Cartera del BID). Sin este archivo el tab Acuerdos no muestra
   datos, pero el resto del dashboard sigue funcionando igual. Ver
@@ -422,6 +426,94 @@ pie hay un enlace al tab Acuerdos.
 El dashboard reflejará los acuerdos nuevos, cerrados o con fecha modificada
 en la próxima visita o al presionar **Actualizar Datos**.
 
+## Contratos críticos y monitoreo de pagos
+
+El tab **Contratos Críticos** tiene dos subsecciones y se alimenta de un Excel del
+MS Project por operación, más dos hojas de `torre_de_control_CCR.xlsx`.
+
+### Fuente: `flujo_mensual/Flujo mensual - <préstamo>.xlsx`
+
+Es el Excel que se extrae del MS Project (PEP-SMART) con el flujo mensual de la
+operación (por ejemplo, el de CR-L1137). Se guarda en la carpeta **`flujo_mensual/`**
+con el nombre `Flujo mensual - <aprobación con "/" reemplazado por "_">.xlsx` (la
+aprobación sale de `datos_ops`; p. ej. `Flujo mensual - 4871_OC-CR.xlsx`). Cada versión
+nueva **reemplaza** al archivo anterior de esa operación, con el mismo nombre. El
+dashboard usa dos de sus hojas:
+
+| Hoja | Qué se toma |
+|------|-------------|
+| `Flujo_Contratos_Criticos` | Los contratos críticos (columnas `Obra` y `Contrato`, con el ID entre corchetes, p. ej. `[CR-L1137-P00348]`), su total y, por mes, lo **Ejecutado** (pagado) y lo **Proyectado** (plan vigente). El mes de corte es el último mes con Ejecutado en la fila `TOTAL` |
+| `Detalle` | La **línea base** de cada pago (`LB_Mes`, `LB_Monto`), más el método (`Metodo`) y el estado de adquisición (`EstadoAdq`) de cada contrato crítico |
+
+Si el archivo de una operación no existe, esa operación simplemente no aparece en el tab.
+
+### Hoja `contratos_criticos` (Excel principal)
+
+Declara qué operaciones se leen y aporta datos que el MS Project no trae. Columnas:
+`operacion | contrato | sector | estado | falta_2026 | descripcion`.
+
+- **Una fila por operación, con `contrato` vacío**, es obligatoria para que la
+  operación se cargue; ahí se indican el `sector` y `falta_2026` (US$ millones, lo que
+  falta por desembolsar a la operación en 2026) que se aplican a todos sus contratos.
+- Una fila con `contrato` lleno (p. ej. `CR-L1137-P00348`) sobrescribe esos valores
+  para ese contrato y permite fijar el `estado` y la `descripcion`. Si `estado` queda
+  vacío se usa el estado de adquisición del MS Project; si `descripcion` queda vacía se
+  usa `Obra · nombre del proceso`.
+
+### Subsección 1: Contratos críticos a seguir
+
+Tabla de los contratos críticos de todas las operaciones cargadas, de mayor a menor
+monto: contrato, operación, sector, descripción, monto (total del contrato, pagado +
+proyectado, en US$ millones), estado y "falta a la operación 2026". Un resumen arriba
+indica el número de contratos y el monto total. Al hacer clic en una fila se baja al
+monitoreo de ese contrato.
+
+### Subsección 2: Monitoreo mensual de pagos
+
+Un bloque por contrato que responde "¿se está pagando al ritmo previsto?". Para el año
+del mes de corte, cada mes transcurrido compara lo **pagado** (Ejecutado) con el
+**plan** (línea base); en los meses que aún no transcurren se muestra lo Proyectado
+vigente como referencia. Cada mes se clasifica así:
+
+| Estado | Regla |
+|--------|-------|
+| En ritmo (verde) | El pago del mes está dentro de ±20% del plan |
+| Alerta amarilla | El pago del mes queda más de 20% por debajo del plan |
+| Por encima, sin alerta (azul) | Se pagó más de 20% por encima del plan; no es alerta, pero conviene actualizar el plan |
+| Alerta roja | 3 meses consecutivos pagando menos de lo previsto (racha activa al mes de corte) |
+| Sin plan (gris) | El mes no tiene plan para comparar (los meses sin plan no rompen ni suman a la racha) |
+
+El estado del contrato es rojo si la racha actual es de 3 o más meses, amarillo si es de
+1 o 2, y si no, el del último mes con plan. Cada bloque muestra la franja de meses, 5 KPI
+(pagado en el año, % del plan acumulado, meses por debajo, meses por encima y racha
+actual), el gráfico de barras plan vs. pagado, la curva acumulada y las alertas
+automáticas. El badge del tab cuenta los contratos en alerta amarilla o roja (rojo si
+alguno está en roja).
+
+### Hoja `causas_pagos` (Excel principal)
+
+Por cada mes en alerta (amarilla o roja), el bloque muestra una tabla **"Lo completa la
+unidad ejecutora"**. Lo que registre la unidad ejecutora va en esta hoja, una fila por
+contrato y mes: `contrato | mes | causa_principal | que_paso | accion_responsable |
+fecha_compromiso`.
+
+- `contrato` es el ID (p. ej. `CR-L1137-P00367`) y `mes` va como `AAAA-MM` (p. ej. `2026-10`).
+- `causa_principal` se elige de una lista cerrada (la hoja trae la lista en la
+  columna H): trámite de pago o estimación; servicios públicos, permisos o
+  expropiaciones; diseño o cambios de alcance; capacidad o flujo de caja del
+  contratista; supervisión o aprobaciones técnicas; presupuesto o espacio fiscal;
+  clima o condiciones del sitio; otra.
+- Mientras no haya fila para un mes en alerta, la tabla muestra "Por registrar".
+
+### Cómo actualizar el monitoreo
+
+1. Extrae el Excel actualizado del MS Project (PEP-SMART) de la operación.
+2. Súbelo a `flujo_mensual/` con el nombre `Flujo mensual - <préstamo>.xlsx`,
+   reemplazando el anterior (ver "Pasos para subir archivos").
+3. Registra las causas de los meses en alerta en la hoja `causas_pagos`.
+4. Para sumar una operación nueva, agrega su fila (con `contrato` vacío) en la hoja
+   `contratos_criticos` y sube su archivo a `flujo_mensual/`.
+
 ## Cómo registrar comentarios en cláusulas vencidas
 
 1. Abre `torre_de_control_CCR.xlsx` y ve a la hoja **`comentarios_clausulas`**
@@ -448,6 +540,7 @@ El dashboard mostrará el comentario más reciente por cláusula en el tab **Cl�
 | Cláusulas | csv + xlsx | Dos secciones: **Vencidas** (con el comentario más reciente de `comentarios_clausulas`) y **Próximas a vencer (180 días)** con barra de urgencia. Solo considera cláusulas de préstamos de inversión (`INV`) en estado `TRACK`. Los badges del tab muestran ambos conteos. Filtro por operación (un botón por cada programa con cláusulas vencidas o por vencer; se generan solos a partir del CSV) que filtra ambas tablas; un segundo clic o **↺ Todas** vuelve a mostrar todas. Los badges y KPIs siguen mostrando los totales |
 | Resultados | xlsx + raw data | Indicadores de la Matriz de Resultados agrupados por operación y objetivo, con probabilidad Alta/Media/Baja (tarjetas con conteo y porcentaje del total) y filtro por operación. Los chips de producto crítico se colorean según su estado y, al hacer clic, muestran su(s) adquisición(es) crítica(s) (ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)) |
 | Productos Críticos | xlsx + raw data | Tarjetas con conteo y porcentaje de productos Logrados / En tiempo / Retrasados / Pausados, filtro por operación y tabla de productos. Cada producto muestra el nombre de su(s) adquisición(es) crítica(s) como chip clicable, con detalle de ID de proceso, monto, estado y método, y según la etapa: contratista, monto, firma y fin estimado del contrato, o la fecha esperada de inicio o de firma (ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)) |
+| Contratos Críticos | flujo_mensual + xlsx | Dos subsecciones: la lista de **contratos críticos a seguir** (del PEP-SMART, de mayor a menor monto, con sector, estado y falta a la operación 2026) y el **monitoreo mensual de pagos** por contrato: plan (línea base) vs. pagado, alertas amarilla/roja, gráficos y tabla de causas que completa la unidad ejecutora (ver [Contratos críticos y monitoreo de pagos](#contratos-críticos-y-monitoreo-de-pagos)). El badge cuenta los contratos en alerta |
 | Equipo | xlsx | Composición del equipo por operación con alerta de roles faltantes. Roles requeridos: Jefe de Equipo, Jefe de Equipo alterno, Abogado, Esp. Adquisiciones, Esp. Financiera, Apoyo Fiduciario, Equipo ESG y 2 Analistas |
 | Documentos | xlsx | Tarjeta por operación con íconos por tipo de documento que enlazan a SharePoint/EZShare (Firma autorizada, PP, POD, LP, LP — Modification, LC, LC — Loan modification, ROP, PF, Ratificación AL, Policy waivers, PEP, Provisionamiento Portal del Cliente). Tipos no reconocidos se muestran con ícono genérico; los documentos sin URL aparecen como "Sin enlace" |
 | PMR | PMR_Historico | Calificaciones (Satisfactorio / Alerta / Problema / Sin calificación) e indicadores técnicos (Desemb., SPI, SPI(a), CPI, CPI(a), Meses 95%, Etapa) del ciclo PMR vigente por programa. Si la clasificación validada difiere de la calculada, la tarjeta muestra ambas con la marca "Ajustada por la COF". Las tarjetas son clicables y muestran la tabla de ciclos anteriores; las que tienen el histórico desactualizado respecto al ciclo vigente muestran una advertencia. Si la operación tiene fila en la hoja `Proyeccion`, la tarjeta muestra también la calificación proyectada al cierre del año, con los comentarios y el plan de acción del último informe de ciclo PMR, y una franja bajo los KPI resume la distribución proyectada (ver [Datos de PMR por operación](#datos-de-pmr-por-operación)) |
@@ -485,6 +578,7 @@ vuelta a la Torre de Control.
 | `Status Date Clause Operation.csv` | Estado de cláusulas contractuales (fuente: PowerBI BID; llega cada lunes por suscripción y lo copia un flujo de Power Automate) |
 | `clientportal/Raw Data - <préstamo>.xlsx` | Detalle del Plan de Adquisiciones, hitos y contratos por operación (uno por préstamo con datos cargados; ver [Adquisiciones críticas por operación](#adquisiciones-críticas-por-operación)) |
 | `clientportal/Contracts and Amendments - <préstamo>.xlsx` | Contratos registrados en el nuevo módulo del portal, complemento del Raw Data (opcional; ver [Contratos del nuevo módulo del portal](#contratos-del-nuevo-módulo-del-portal)) |
+| `flujo_mensual/Flujo mensual - <préstamo>.xlsx` | Excel del MS Project (PEP-SMART) por operación: fuente del tab Contratos Críticos (ver [Contratos críticos y monitoreo de pagos](#contratos-críticos-y-monitoreo-de-pagos)). Se reemplaza en cada actualización |
 | `PMR_Historico.xlsx` | Fuente única del tab PMR: calificaciones, indicadores y ciclos históricos, una hoja por operación, más la hoja `Proyeccion` con la calificación proyectada al cierre del año (ver [Datos de PMR por operación](#datos-de-pmr-por-operación)) |
 | `agreement_report.xlsx` | Fuente única del tab Acuerdos: acuerdos de Revisión de Cartera por operación (ver [Acuerdos de Revisión de Cartera](#acuerdos-de-revisión-de-cartera)) |
 | `clientportal/` | Carpeta que concentra los archivos descargados del Portal de Cliente del BID (Raw Data y Contracts and Amendments). El dashboard los busca **solo** aquí |
@@ -505,6 +599,8 @@ vuelta a la Torre de Control.
 | `resultados` | Indicadores de la Matriz de Resultados (`Operacion`, `Objetivo_ID`, `Objetivo_Descripcion`, `Indicador_ID`, `Indicador_Descripcion`, `Linea_Base`, `Meta`, `Probabilidad_Logro`) |
 | `productos_resultados` | Relación indicador ↔ producto (`Operacion`, `Indicador_ID`, `Producto_Critico`) |
 | `comentarios_clausulas` | Comentarios asociados a cláusulas vencidas |
+| `contratos_criticos` | Operaciones con monitoreo de pagos y datos que no trae el MS Project (`operacion`, `contrato`, `sector`, `estado`, `falta_2026`, `descripcion`) |
+| `causas_pagos` | Causas, acciones y fechas que registra la unidad ejecutora por contrato y mes en alerta (`contrato`, `mes`, `causa_principal`, `que_paso`, `accion_responsable`, `fecha_compromiso`) |
 | `change log` | Historial de cambios (`Fecha de revisión`, `Tab de la torre`, `Operación`, `acción lograda`) |
 
 ## Skills de Claude que dan soporte a la Torre de Control
@@ -566,6 +662,6 @@ Fiduciario de Adquisiciones", deja esa fila vacía hasta que se corrija allí.
 
 - HTML5 + JavaScript (ES6+), sin framework ni servidor
 - [SheetJS v0.18.5](https://sheetjs.com/) — lectura de Excel en el navegador
-- IndexedDB — caché local de datos (Excel principal, CSV, raw data por operación,
+- IndexedDB — caché local de datos (Excel principal, CSV, raw data por operación, flujo mensual por operación,
   `PMR_Historico.xlsx`, `agreement_report.xlsx` y fechas de última modificación)
 - GitHub Pages — hosting estático
