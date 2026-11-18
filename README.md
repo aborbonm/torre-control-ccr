@@ -442,10 +442,16 @@ dashboard usa dos de sus hojas:
 
 | Hoja | Qué se toma |
 |------|-------------|
-| `Flujo_Contratos_Criticos` | Los contratos críticos (columnas `Obra` y `Contrato`, con el ID entre corchetes, p. ej. `[CR-L1137-P00348]`), su total y, por mes, lo **Ejecutado** (pagado) y lo **Proyectado** (plan vigente). El mes de corte es el último mes con Ejecutado en la fila `TOTAL` |
+| `Flujo_Contratos_Criticos` | Los contratos críticos (columnas `Obra` y `Contrato`, con el ID entre corchetes, p. ej. `[CR-L1137-P00348]` o `[CR-L1139-P00045-C01]`), su total y, por mes, lo **Ejecutado** (pagado) y lo **Proyectado** (plan vigente). El mes de corte es el último mes con Ejecutado en la fila `TOTAL` |
 | `Detalle` | La **línea base** de cada pago (`LB_Mes`, `LB_Monto`), más el método (`Metodo`) y el estado de adquisición (`EstadoAdq`) de cada contrato crítico |
 
 Si el archivo de una operación no existe, esa operación simplemente no aparece en el tab.
+
+> **Nota:** `Flujo mensual - 4864_OC-CR.xlsx` (CR-L1139, contrato Intercambio Grecia
+> `P00045-C01`) está **reconstruido a partir de las imágenes del monitoreo piloto**
+> (montos mensuales aproximados) con la misma estructura de hojas
+> (`Flujo_Contratos_Criticos` y `Detalle`). Reemplazarlo por el export real del
+> MS Project / de la plantilla de la unidad ejecutora cuando esté disponible.
 
 ### Hoja `contratos_criticos` (Excel principal)
 

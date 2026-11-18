@@ -1315,7 +1315,7 @@ function parseFlujoWorkbook(fwb) {
       if (tipo === 'Ejecutado') Object.keys(serie).forEach(m => { if (m > corte) corte = m; });
       return;
     }
-    const idm = contratoTxt.match(/\[([A-Z]{2}-[A-Z]\d+-P\d+)\]/);
+    const idm = contratoTxt.match(/\[([A-Z]{2}-[A-Z]\d+-P\d+(?:-C\d+)?)\]/);
     if (!idm) return;
     const id = idm[1];
     if (!porId[id]) {
@@ -1547,7 +1547,7 @@ function ccTablaCausas(c, a, causas) {
 
 function ccBloque(c, a, causas) {
   const est = CC_ESTADO[a.estado];
-  const op = c.id.replace(/-P\d+$/, '');
+  const op = c.id.replace(/-P\d+(?:-C\d+)?$/, '');
   const strip = a.meses.map(m => `<div class="cc-m ${m.cls === 'fut' ? 'fut' : m.cls === 'none' ? '' : m.cls}" title="${ccEsc(m.nombre)}">${m.nombre[0].toUpperCase()}</div>`).join('');
   const chips = [`Contrato ${c.id}`, c.metodo ? `Método ${c.metodo}` : '', `Monto ${ccUsdM(c.total)}`, `Datos hasta ${ccMesLabel(a.meses.filter(m => m.transcurrido).slice(-1)[0].key)}`].filter(Boolean)
     .map(t => `<span class="cc-chip">${ccEsc(t)}</span>`).join('');
@@ -1568,7 +1568,7 @@ function ccBloque(c, a, causas) {
       <div class="cc-leg"><span><i class="cc-dot" style="background:var(--muted)"></i>Plan acumulado</span><span><i class="cc-dot" style="background:var(--accent)"></i>Pagado acumulado</span></div>
       ${ccLineChart(a)}${ccAlertas(a)}</div></div>`;
   return `<div class="cc-card" id="cc-${ccEsc(c.id)}">
-    <div class="cc-head"><div><div class="cc-eyebrow">${ccEsc(op)} · Contrato crítico</div><h3>${ccEsc(c.obra)} · ${ccEsc(c.id.split('-').pop())}</h3></div>
+    <div class="cc-head"><div><div class="cc-eyebrow">${ccEsc(op)} · Contrato crítico</div><h3>${ccEsc(c.obra)} · ${ccEsc(c.id.slice(op.length + 1))}</h3></div>
       <span class="pill ${est.pill}">${est.txt}</span></div>
     <div class="cc-chips">${chips}</div>
     <div class="cc-strip">${strip}</div>
