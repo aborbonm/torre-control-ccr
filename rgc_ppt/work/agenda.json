@@ -79,6 +79,10 @@
   "CR-J0002": {
    "ext_meses": 18,
    "_motivo": "Sesión previa 16/11/2026: extensión de 18–24 meses en análisis; se usa 18 meses"
+  },
+  "CR-L1137": {
+   "ext_meses": 9,
+   "_motivo": "Sesión previa 16/11/2026: extensión de 9 meses en trámite (último desembolso 17/DIC/2027)"
   }
  }
 }
