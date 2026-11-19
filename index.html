@@ -102,6 +102,52 @@
   .pill-blue{background:rgba(0,212,255,.08);color:var(--accent);border:1px solid rgba(0,212,255,.2);}
   .pill-blue::before{background:var(--accent);}
 
+  /* ── Tab Contratos Críticos ── */
+  :root{--cc-over:#818cf8;--cc-plan:#334155;}
+  .cc-lead{font-size:15px;line-height:1.6;margin-bottom:8px;}
+  .cc-lead b{font-weight:700;}
+  .cc-note{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:16px;max-width:980px;}
+  .cc-num{text-align:right;font-family:var(--mono);white-space:nowrap;}
+  .cc-tag{display:inline-block;font-size:11px;padding:2px 9px;border-radius:100px;background:var(--surface2);border:1px solid var(--border);}
+  .cc-sub{display:block;font-size:11px;color:var(--muted);}
+  tr.cc-row{cursor:pointer;}
+  .cc-intro,.cc-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 26px;margin-bottom:20px;}
+  .cc-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;}
+  .cc-intro h3{font-size:19px;font-weight:800;margin-bottom:10px;}
+  .cc-legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:16px;font-size:12px;color:var(--muted);line-height:1.5;}
+  .cc-legend b{color:var(--text);display:block;}
+  .cc-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;}
+  .cc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+  .cc-head h3{font-size:19px;font-weight:800;margin:2px 0 10px;}
+  .cc-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
+  .cc-chip{font-family:var(--mono);font-size:11px;padding:3px 11px;border-radius:100px;border:1px solid var(--border);color:var(--muted);}
+  .cc-strip{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin:4px 0 10px;}
+  .cc-m{font-family:var(--mono);font-size:11px;font-weight:600;text-align:center;padding:5px 0;border-radius:5px;background:var(--surface2);color:var(--muted);}
+  .cc-m.fut{background:transparent;border:1px dashed var(--border);font-weight:400;}
+  .cc-m.ok{background:var(--green);color:#04130d;}
+  .cc-m.under{background:var(--yellow);color:#1c1200;}
+  .cc-m.red{background:var(--red);color:#fff;}
+  .cc-m.over{background:var(--cc-over);color:#0b0d24;}
+  .cc-msg{font-size:12.5px;line-height:1.6;margin-bottom:16px;}
+  .cc-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:22px;}
+  .cc-kpi{background:var(--surface2);border-radius:10px;padding:14px 16px;}
+  .cc-kpi .v{font-size:24px;font-weight:800;}
+  .cc-kpi .l{font-size:11.5px;color:var(--muted);line-height:1.4;margin-top:2px;}
+  .cc-charts{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:28px;margin-bottom:22px;}
+  @media(max-width:1000px){.cc-charts{grid-template-columns:1fr;}}
+  .cc-charts h4{font-size:13px;font-weight:700;margin-bottom:8px;}
+  .cc-leg{display:flex;flex-wrap:wrap;gap:14px;font-size:11px;color:var(--muted);margin-bottom:8px;}
+  .cc-alerts{margin-top:14px;font-size:12.5px;}
+  .cc-alerts div{padding:7px 0;border-bottom:1px solid var(--border);}
+  .cc-ue{border:1px dashed var(--accent);border-radius:10px;padding:18px 20px 14px;position:relative;margin-top:26px;}
+  .cc-ue-tag{position:absolute;top:-10px;left:16px;background:var(--accent);color:#04202a;font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 10px;border-radius:100px;letter-spacing:.05em;}
+  .cc-ue h4{font-size:14px;font-weight:700;margin-bottom:4px;}
+  .cc-ue .cc-note{margin-bottom:12px;}
+  .cc-pend{font-style:italic;color:var(--muted);}
+  .cc-svg text{font-family:var(--mono);}
+  .cc-pill-gray{background:var(--surface2);color:var(--muted);border:1px solid var(--border);}
+  .cc-pill-over{background:rgba(129,140,248,.14);color:var(--cc-over);border:1px solid rgba(129,140,248,.3);}
+
   .days-bar{display:flex;align-items:center;gap:7px;}
   .bar{height:4px;border-radius:2px;min-width:8px;}
   .days-num{font-family:var(--mono);font-size:12px;font-weight:500;}
@@ -298,6 +344,7 @@
   <div class="tab" onclick="showTab('clausulas-v',this)">Cláusulas <span class="badge badge-red" id="badge-cv">—</span> <span class="badge badge-yellow" id="badge-180">—</span></div>
   <div class="tab" onclick="showTab('resultados-tab',this)">Resultados</div>
   <div class="tab" onclick="showTab('productos',this)">Productos Críticos</div>
+  <div class="tab" onclick="showTab('contratos-criticos',this)">Contratos Críticos <span class="badge badge-yellow" id="badge-cc">—</span></div>
   <div class="tab" onclick="showTab('equipo',this)">Equipo</div>
   <div class="tab" onclick="showTab('documentos',this)">Documentos</div>
   <div class="tab" onclick="showTab('pmr',this)">PMR</div>
@@ -385,6 +432,13 @@
       <thead><tr><th>Operación</th><th>Producto Crítico</th><th>Estado</th><th>Adquisición Crítica</th><th>Riesgos / Comentarios</th></tr></thead>
       <tbody id="t-productos"></tbody>
     </table></div>
+  </div>
+
+  <div id="contratos-criticos" class="panel">
+    <div class="section-head"><h2>Contratos críticos a seguir</h2></div>
+    <div id="cc-lista"></div>
+    <div class="section-head" style="margin-top:34px"><h2>Monitoreo mensual de pagos</h2></div>
+    <div id="cc-monitoreo"></div>
   </div>
 
   <div id="equipo" class="panel">
@@ -634,6 +688,7 @@ async function fetchExcel(forceRefresh) {
         _rawProcMap = await loadRawDataMap(wb, true);
         _pmrHistoryMap = await loadPmrHistoryMap(true);
         _acdData = await loadAgreementsData(true);
+        _flujoData = await loadFlujoData(wb, true);
         renderAll(wb, csvText);
         document.getElementById('file-picker').classList.add('hidden');
         await updateFileDateChips(true);
@@ -687,6 +742,7 @@ async function fetchAndUpdate() {
     _rawProcMap = await loadRawDataMap(wb, false);
     _pmrHistoryMap = await loadPmrHistoryMap(false);
     _acdData = await loadAgreementsData(false);
+    _flujoData = await loadFlujoData(wb, false);
     renderAll(wb, csvText);
     document.getElementById('file-picker').classList.add('hidden');
     document.getElementById('loader').classList.add('hidden');
@@ -873,11 +929,11 @@ function parseContratos(rwb, fuente) {
 // Descarga (o lee de caché) un archivo por operación. Devuelve bytes o null.
 // optional=true: un 404 significa "no hay archivo" y se ignora la caché (por ejemplo,
 // cuando el portal unifique los exportes y se deje de subir el Contracts and Amendments).
-async function fetchOpFile(fileName, cacheKey, useCacheOnly, optional) {
+async function fetchOpFile(fileName, cacheKey, useCacheOnly, optional, baseUrl) {
   let bytes = null;
   if (!useCacheOnly) {
     try {
-      const res = await fetch(RAWDATA_BASE_URL + encodeURIComponent(fileName) + '?t=' + Date.now());
+      const res = await fetch((baseUrl || RAWDATA_BASE_URL) + encodeURIComponent(fileName) + '?t=' + Date.now());
       if (res.ok) {
         bytes = new Uint8Array(await res.arrayBuffer());
         await saveToCacheKey(cacheKey, bytes, Date.now());
@@ -1203,6 +1259,384 @@ async function loadAgreementsData(useCacheOnly) {
   }
 }
 
+// ── Contratos críticos: monitoreo mensual de pagos (flujo_mensual/) ──
+// Fuente: un Excel del MS Project (PEP-SMART) por operación, en la carpeta flujo_mensual/,
+// con nombre "Flujo mensual - <aprobacion con '/' -> '_'>.xlsx" (ver datos_ops.aprobacion).
+// De ahí salen los contratos críticos (hoja Flujo_Contratos_Criticos: pagado = Ejecutado,
+// proyectado vigente = Proyectado) y la línea base de cada pago (hoja Detalle: LB_Mes / LB_Monto).
+// La hoja contratos_criticos de torre_de_control_CCR.xlsx declara qué operaciones se leen y
+// aporta sector, estado y "falta a la operación 2026"; causas_pagos guarda lo que registra la
+// unidad ejecutora cuando un mes queda bajo el plan.
+const FLUJO_BASE_URL = 'https://raw.githubusercontent.com/aborbonm/torre-control-ccr/main/flujo_mensual/';
+let _flujoData = {}; // op -> { contratos: [{id, obra, nombre, total, metodo, estadoAdq, ejec:{mes:monto}, proy:{mes:monto}, lb:{mes:monto}}], corte: 'YYYY-MM' }
+
+function flujoFileNameFor(aprobacion) {
+  return 'Flujo mensual - ' + aprobacion.replace(/\//g, '_') + '.xlsx';
+}
+
+// Filas de la hoja contratos_criticos del Excel principal.
+// Fila con contrato vacío = valores por defecto de la operación (sector, falta_2026).
+function parseContratosCriticosSheet(wb) {
+  const ws = getSheet(wb, 'contratos_criticos');
+  if (!ws) return [];
+  const rows = sheetToArr(ws);
+  const hIdx = rows.findIndex(r => r.some(c => s(c).toLowerCase() === 'operacion'));
+  if (hIdx < 0) return [];
+  const hdr = rows[hIdx].map(c => s(c).toLowerCase());
+  const col = n => hdr.indexOf(n);
+  return rows.slice(hIdx + 1).filter(r => s(r[col('operacion')])).map(r => ({
+    operacion: s(r[col('operacion')]),
+    contrato: s(r[col('contrato')]),
+    sector: s(r[col('sector')]),
+    estado: s(r[col('estado')]),
+    falta: r[col('falta_2026')],
+    descripcion: s(r[col('descripcion')]),
+  }));
+}
+
+function parseFlujoWorkbook(fwb) {
+  const wsC = getSheet(fwb, 'flujo_contratos_criticos');
+  if (!wsC) return null;
+  const rows = sheetToArr(wsC);
+  const hIdx = rows.findIndex(r => s(r[0]) === 'Obra');
+  if (hIdx < 0) return null;
+  const hdr = rows[hIdx];
+  const meses = {};
+  hdr.forEach((h, i) => { if (/^\d{4}-\d{2}$/.test(s(h))) meses[i] = s(h); });
+  const porId = {};
+  const orden = [];
+  let corte = '';
+  rows.slice(hIdx + 1).forEach(r => {
+    const obra = s(r[0]), contratoTxt = s(r[1]), tipo = s(r[2]);
+    if (!tipo) return;
+    const serie = {};
+    Object.entries(meses).forEach(([i, m]) => { const v = Number(r[i]); if (v) serie[m] = v; });
+    if (obra === 'TOTAL') {
+      if (tipo === 'Ejecutado') Object.keys(serie).forEach(m => { if (m > corte) corte = m; });
+      return;
+    }
+    const idm = contratoTxt.match(/\[([A-Z]{2}-[A-Z]\d+-P\d+(?:-C\d+)?)\]/);
+    if (!idm) return;
+    const id = idm[1];
+    if (!porId[id]) {
+      porId[id] = { id, obra, nombre: contratoTxt.replace(/\s*\[[^\]]*\]\s*$/, '').trim(), total: 0, metodo: '', estadoAdq: '', ejec: {}, proy: {}, lb: {} };
+      orden.push(id);
+    }
+    if (tipo === 'Ejecutado') porId[id].ejec = serie;
+    else if (tipo === 'Proyectado') porId[id].proy = serie;
+    else if (tipo === 'Total') porId[id].total = Number(r[3]) || 0;
+  });
+
+  // Línea base, método y estado de adquisición desde Detalle (solo de los contratos críticos).
+  const wsD = getSheet(fwb, 'detalle');
+  if (wsD) {
+    const dr = sheetToArr(wsD);
+    const dh = dr[0].map(h => s(h));
+    const iNum = dh.indexOf('NumProceso'), iMet = dh.indexOf('Metodo'), iEst = dh.indexOf('EstadoAdq');
+    const iLbM = dh.indexOf('LB_Mes'), iLbV = dh.indexOf('LB_Monto');
+    for (let k = 1; k < dr.length; k++) {
+      const r = dr[k];
+      const c = porId[s(r[iNum])];
+      if (!c) continue;
+      if (!c.metodo) c.metodo = s(r[iMet]);
+      if (!c.estadoAdq) c.estadoAdq = s(r[iEst]);
+      const m = s(r[iLbM]).slice(0, 7), v = Number(r[iLbV]);
+      if (m && v) c.lb[m] = (c.lb[m] || 0) + v;
+    }
+  }
+  return { contratos: orden.map(id => porId[id]), corte };
+}
+
+async function loadFlujoData(wb, useCacheOnly) {
+  const out = {};
+  const ops = [...new Set(parseContratosCriticosSheet(wb).map(r => r.operacion))];
+  if (!ops.length) return out;
+  const wsOps = getSheet(wb, 'datos_ops');
+  const aprobByOp = {};
+  if (wsOps) sheetToArr(wsOps).forEach(r => {
+    const cod = s(r[0]), aprob = s(r[1]);
+    if (cod && aprob && !aprobByOp[cod]) aprobByOp[cod] = aprob;
+  });
+  for (const op of ops) {
+    if (!aprobByOp[op]) continue;
+    const bytes = await fetchOpFile(flujoFileNameFor(aprobByOp[op]), 'flujo:' + op, useCacheOnly, true, FLUJO_BASE_URL);
+    if (!bytes) continue;
+    try {
+      const parsed = parseFlujoWorkbook(XLSX.read(bytes, { type: 'array' }));
+      if (parsed) out[op] = parsed;
+    } catch (e) {
+      console.warn('Error parseando flujo mensual de ' + op + ':', e);
+    }
+  }
+  return out;
+}
+
+const CC_MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const CC_BAJO = 0.8, CC_ALTO = 1.2, CC_RACHA_ROJA = 3;
+const ccEsc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const ccUsdM = v => 'US$' + (v / 1e6).toFixed(2) + ' M';
+const ccCompact = v => { const a = Math.abs(v); return a >= 1e6 ? (v/1e6).toFixed(a >= 1e7 ? 0 : 1).replace(/\.0$/,'') + 'M' : a >= 1e3 ? Math.round(v/1e3) + 'k' : String(Math.round(v)); };
+const ccLista = arr => arr.length > 1 ? arr.slice(0, -1).join(', ') + ' y ' + arr[arr.length - 1] : arr.join('');
+
+// Clasifica un mes con plan: 'ok' (±20%), 'under' (>20% por debajo), 'over' (>20% por encima).
+function ccClasificar(plan, pagado) {
+  if (!(plan > 0)) return 'none';
+  const r = pagado / plan;
+  return r < CC_BAJO ? 'under' : r > CC_ALTO ? 'over' : 'ok';
+}
+
+// Calcula, para el año del corte, la comparación mensual plan vs pagado de un contrato.
+// Meses ya transcurridos: plan = línea base. Meses futuros: plan = proyectado vigente.
+function ccAnalizar(c, corte) {
+  if (!corte) return null;
+  const year = corte.slice(0, 4), cutIdx = parseInt(corte.slice(5), 10) - 1;
+  const meses = CC_MESES.map((nombre, i) => {
+    const key = year + '-' + String(i + 1).padStart(2, '0');
+    const transcurrido = i <= cutIdx;
+    const plan = transcurrido ? (c.lb[key] || 0) : (c.proy[key] || 0);
+    const pagado = transcurrido ? (c.ejec[key] || 0) : null;
+    return { key, nombre, transcurrido, plan, pagado, cls: transcurrido ? ccClasificar(plan, pagado) : 'fut' };
+  });
+  const el = meses.filter(m => m.transcurrido);
+  let racha = 0;
+  for (let i = el.length - 1; i >= 0; i--) {
+    if (el[i].cls === 'none') continue;
+    if (el[i].cls === 'under') racha++; else break;
+  }
+  const bajo = el.filter(m => m.cls === 'under'), alto = el.filter(m => m.cls === 'over');
+  const conPlan = el.filter(m => m.cls !== 'none');
+  let estado;
+  if (!conPlan.length) estado = 'none';
+  else if (racha >= CC_RACHA_ROJA) estado = 'red';
+  else if (racha >= 1) estado = 'yellow';
+  else estado = conPlan[conPlan.length - 1].cls === 'over' ? 'over' : 'ok';
+  // Mes rojo = último tramo de la racha activa cuando esta ya es roja.
+  if (estado === 'red') {
+    let n = 0;
+    for (let i = el.length - 1; i >= 0 && n < racha; i--) { if (el[i].cls === 'none') continue; if (el[i].cls === 'under') { el[i].cls = 'red'; n++; } }
+  }
+  const pagadoYtd = el.reduce((a, m) => a + m.pagado, 0);
+  const planAcum = el.reduce((a, m) => a + m.plan, 0);
+  const planAnio = meses.reduce((a, m) => a + m.plan, 0);
+  const sigFuturo = Object.keys(Object.assign({}, c.lb, c.proy)).filter(k => k > corte && ((c.lb[k] || 0) || (c.proy[k] || 0))).sort()[0] || '';
+  return { year, meses, racha, bajo, alto, estado, pagadoYtd, planAcum, planAnio, pctPlan: planAcum > 0 ? pagadoYtd / planAcum : null, sigFuturo };
+}
+
+const CC_ESTADO = {
+  ok:     { txt: 'En ritmo',               pill: 'pill-green' },
+  yellow: { txt: 'Alerta amarilla',        pill: 'pill-yellow' },
+  red:    { txt: 'Alerta roja',            pill: 'pill-red' },
+  over:   { txt: 'Por encima, sin alerta', pill: 'cc-pill-over' },
+  none:   { txt: 'Sin plan',               pill: 'cc-pill-gray' },
+};
+
+function ccMesLabel(key) { return CC_MESES[parseInt(key.slice(5), 10) - 1] + ' ' + key.slice(0, 4); }
+
+function ccMensaje(a) {
+  if (a.estado === 'none') return a.sigFuturo ? `Sin plan ni pagos en ${a.year}. Primer pago previsto: ${ccMesLabel(a.sigFuturo)}.` : `Sin plan ni pagos en ${a.year}.`;
+  const partes = [];
+  if (a.bajo.length || a.racha) {
+    const under = a.meses.filter(m => m.cls === 'under' || m.cls === 'red').map(m => m.nombre);
+    partes.push(`Pagó más de 20% por debajo de lo prometido en ${ccLista(under)}.`);
+    if (a.racha >= CC_RACHA_ROJA) partes.push(`Racha roja: ${a.racha} meses seguidos bajo el plan.`);
+    else if (a.racha >= 1) { const f = CC_RACHA_ROJA - a.racha; partes.push(`Lleva ${a.racha} ${a.racha === 1 ? 'mes' : 'meses'} bajo el plan: ${f === 1 ? 'un mes más' : f + ' meses más'} y pasa a roja.`); }
+  }
+  if (a.alto.length) partes.push(`Pagó por encima de lo prometido en ${ccLista(a.alto.map(m => m.nombre))} (sin alerta).`);
+  if (!partes.length) partes.push('Los pagos de los meses transcurridos están dentro de ±20% de lo previsto.');
+  return partes.join(' ');
+}
+
+function ccBarChart(a, maxV) {
+  const W = 640, H = 230, L = 44, B = 40, T = 10, R = 8;
+  const pw = W - L - R, ph = H - B - T, slot = pw / 12, bw = slot * .36;
+  const y = v => T + ph - (Math.max(v, 0) / maxV) * ph;
+  const col = { ok: 'var(--green)', under: 'var(--yellow)', red: 'var(--red)', over: 'var(--cc-over)' };
+  let g = '';
+  [0, .25, .5, .75, 1].forEach(f => {
+    const v = maxV * f, yy = y(v);
+    g += `<line x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}" stroke="var(--border)" stroke-width="1"/><text x="${L - 6}" y="${yy + 3}" text-anchor="end" font-size="9" fill="var(--muted)">${ccCompact(v)}</text>`;
+  });
+  a.meses.forEach((m, i) => {
+    const x0 = L + i * slot + slot * .12;
+    if (m.plan > 0) g += `<rect x="${x0}" y="${y(m.plan)}" width="${bw}" height="${T + ph - y(m.plan)}" fill="var(--cc-plan)"><title>${ccEsc(m.nombre)}: plan ${ccUsdM(m.plan)}</title></rect>`;
+    if (m.transcurrido && m.pagado > 0) g += `<rect x="${x0 + bw + 2}" y="${y(m.pagado)}" width="${bw}" height="${T + ph - y(m.pagado)}" fill="${col[m.cls] || 'var(--green)'}"><title>${ccEsc(m.nombre)}: pagado ${ccUsdM(m.pagado)}</title></rect>`;
+    g += `<text x="${L + i * slot + slot / 2}" y="${H - B + 14}" text-anchor="middle" font-size="9" fill="var(--muted)">${m.nombre}</text>`;
+    if (m.transcurrido && m.plan > 0) g += `<text x="${L + i * slot + slot / 2}" y="${H - B + 26}" text-anchor="middle" font-size="9" font-weight="700" fill="${col[m.cls] || 'var(--muted)'}">${Math.round(m.pagado / m.plan * 100)}%</text>`;
+  });
+  return `<svg class="cc-svg" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Pago mensual: plan vs pagado">${g}</svg>`;
+}
+
+function ccLineChart(a) {
+  const W = 480, H = 230, L = 44, B = 26, T = 18, R = 56;
+  const pw = W - L - R, ph = H - B - T;
+  let accP = 0, accE = 0;
+  const planPts = [], pagPts = [];
+  a.meses.forEach((m, i) => {
+    accP += m.plan; planPts.push(accP);
+    if (m.transcurrido) { accE += m.pagado; pagPts.push(accE); }
+  });
+  const maxV = Math.max(accP, accE, 1);
+  const x = i => L + (pw * i) / 11, y = v => T + ph - (v / maxV) * ph;
+  let g = '';
+  [0, .25, .5, .75, 1].forEach(f => { const yy = y(maxV * f); g += `<line x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}" stroke="var(--border)"/><text x="${L - 6}" y="${yy + 3}" text-anchor="end" font-size="9" fill="var(--muted)">${ccCompact(maxV * f)}</text>`; });
+  [0, 2, 4, 6, 8, 10].forEach(i => { g += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="9" fill="var(--muted)">${CC_MESES[i]}</text>`; });
+  g += `<polyline fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 3" points="${planPts.map((v, i) => x(i) + ',' + y(v)).join(' ')}"/>`;
+  g += `<text x="${x(11) + 4}" y="${y(accP) + 3}" font-size="9" fill="var(--muted)">Plan ${(accP / 1e6).toFixed(1)} M</text>`;
+  if (pagPts.length) {
+    g += `<polyline fill="none" stroke="var(--accent)" stroke-width="2.2" points="${pagPts.map((v, i) => x(i) + ',' + y(v)).join(' ')}"/>`;
+    const li = pagPts.length - 1;
+    g += `<circle cx="${x(li)}" cy="${y(pagPts[li])}" r="3.5" fill="var(--accent)"/><text x="${x(li) + 6}" y="${y(pagPts[li]) + 14}" font-size="10" font-weight="700" fill="var(--accent)">${(pagPts[li] / 1e6).toFixed(2)} M</text>`;
+  }
+  return `<svg class="cc-svg" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Curva acumulada plan vs pagado">${g}</svg>`;
+}
+
+function ccAlertas(a) {
+  const l = [];
+  l.push(a.racha >= CC_RACHA_ROJA
+    ? `<div style="color:var(--red)">▼ Racha roja activa (${a.racha} meses seguidos bajo el plan)</div>`
+    : `<div>✓ Sin racha roja activa (${a.racha} ${a.racha === 1 ? 'mes' : 'meses'} bajo el plan)</div>`);
+  const nb = a.meses.filter(m => m.cls === 'under' || m.cls === 'red').length;
+  if (nb) l.push(`<div style="color:var(--red)">▼ ${nb} ${nb === 1 ? 'mes pagando' : 'meses pagando'} más de 20% por debajo de lo prometido</div>`);
+  if (a.alto.length) l.push(`<div style="color:var(--cc-over)">● ${a.alto.length} ${a.alto.length === 1 ? 'mes pagando' : 'meses pagando'} más de 20% por encima de lo prometido: no es alerta; conviene actualizar el plan</div>`);
+  if (a.pctPlan != null) l.push(`<div>✓ Pagado acumulado: ${Math.round(a.pctPlan * 100)}% del plan a la fecha</div>`);
+  return `<div class="cc-alerts"><h4 style="margin-bottom:4px">Alertas automáticas</h4>${l.join('')}</div>`;
+}
+
+function ccCausasMap(wb) {
+  const map = {};
+  const ws = getSheet(wb, 'causas_pagos');
+  if (!ws) return map;
+  const rows = sheetToArr(ws);
+  const hIdx = rows.findIndex(r => s(r[0]).toLowerCase() === 'contrato');
+  if (hIdx < 0) return map;
+  const h = rows[hIdx].map(c => s(c).toLowerCase());
+  rows.slice(hIdx + 1).forEach(r => {
+    const id = s(r[h.indexOf('contrato')]);
+    let mes = r[h.indexOf('mes')];
+    if (mes instanceof Date) mes = mes.getUTCFullYear() + '-' + String(mes.getUTCMonth() + 1).padStart(2, '0');
+    mes = s(mes).slice(0, 7);
+    if (!id || !mes) return;
+    map[id + '|' + mes] = {
+      causa: s(r[h.indexOf('causa_principal')]),
+      paso: s(r[h.indexOf('que_paso')]),
+      accion: s(r[h.indexOf('accion_responsable')]),
+      fecha: r[h.indexOf('fecha_compromiso')] ? fmtDate(r[h.indexOf('fecha_compromiso')]) : '',
+    };
+  });
+  return map;
+}
+
+function ccTablaCausas(c, a, causas) {
+  const alerta = a.meses.filter(m => m.cls === 'under' || m.cls === 'red');
+  if (!alerta.length) return '';
+  const pend = '<span class="cc-pend">Por registrar</span>';
+  const filas = alerta.map(m => {
+    const e = causas[c.id + '|' + m.key] || {};
+    return `<tr>
+      <td>${ccEsc(m.nombre)} ${a.year}</td><td class="cc-num">${ccUsdM(m.plan)}</td><td class="cc-num">${ccUsdM(m.pagado)}</td>
+      <td class="cc-num">${Math.round(m.pagado / m.plan * 100)}%</td>
+      <td><span class="pill ${m.cls === 'red' ? 'pill-red' : 'pill-yellow'}">${m.cls === 'red' ? 'Roja' : 'Amarilla'} · por debajo</span></td>
+      <td>${e.causa ? ccEsc(e.causa) : pend}</td><td>${e.paso ? ccEsc(e.paso) : pend}</td><td>${e.accion ? ccEsc(e.accion) : pend}</td><td>${e.fecha ? ccEsc(e.fecha) : '—'}</td></tr>`;
+  }).join('');
+  return `<div class="cc-ue"><span class="cc-ue-tag">LO COMPLETA LA UNIDAD EJECUTORA</span>
+    <h4>¿Por qué no se logró el pago previsto del mes?</h4>
+    <div class="cc-note">Una fila por cada mes en alerta. Causa principal de una lista cerrada, qué pasó, acción de destrabe, responsable y fecha. Se registra en la hoja <code>causas_pagos</code> del Excel.</div>
+    <div class="table-wrap" style="margin-bottom:8px"><table><thead><tr><th>Mes</th><th>Plan</th><th>Pagado</th><th>% del plan</th><th>Alerta</th><th>Causa principal</th><th>Qué pasó</th><th>Acción de destrabe · Responsable</th><th>Fecha compromiso</th></tr></thead><tbody>${filas}</tbody></table></div>
+    <div class="cc-note" style="margin-bottom:0">Lista de causas: trámite de pago o estimación; servicios públicos, permisos o expropiaciones; diseño o cambios de alcance; capacidad o flujo de caja del contratista; supervisión o aprobaciones técnicas; presupuesto o espacio fiscal; clima o condiciones del sitio; otra.</div></div>`;
+}
+
+function ccBloque(c, a, causas) {
+  const est = CC_ESTADO[a.estado];
+  const op = c.id.replace(/-P\d+(?:-C\d+)?$/, '');
+  const strip = a.meses.map(m => `<div class="cc-m ${m.cls === 'fut' ? 'fut' : m.cls === 'none' ? '' : m.cls}" title="${ccEsc(m.nombre)}">${m.nombre[0].toUpperCase()}</div>`).join('');
+  const chips = [`Contrato ${c.id}`, c.metodo ? `Método ${c.metodo}` : '', `Monto ${ccUsdM(c.total)}`, `Datos hasta ${ccMesLabel(a.meses.filter(m => m.transcurrido).slice(-1)[0].key)}`].filter(Boolean)
+    .map(t => `<span class="cc-chip">${ccEsc(t)}</span>`).join('');
+  const sinPlan = a.estado === 'none' && !a.pagadoYtd;
+  const nBajo = a.meses.filter(m => m.cls === 'under' || m.cls === 'red').length;
+  const kpis = sinPlan ? '' : `<div class="cc-kpis">
+    <div class="cc-kpi"><div class="v">${ccUsdM(a.pagadoYtd)}</div><div class="l">pagado en ${a.year} hasta ${a.meses.filter(m => m.transcurrido).slice(-1)[0].nombre}</div></div>
+    <div class="cc-kpi"><div class="v">${a.pctPlan != null ? Math.round(a.pctPlan * 100) + '%' : '—'}</div><div class="l">del plan vigente acumulado (${ccUsdM(a.planAcum)})</div></div>
+    <div class="cc-kpi"><div class="v" style="color:var(--yellow)">${nBajo}</div><div class="l">${nBajo === 1 ? 'mes pagando' : 'meses pagando'} más de 20% por debajo de lo prometido</div></div>
+    <div class="cc-kpi"><div class="v" style="color:var(--cc-over)">${a.alto.length}</div><div class="l">${a.alto.length === 1 ? 'mes pagando' : 'meses pagando'} más de 20% por encima (sin alerta)</div></div>
+    <div class="cc-kpi"><div class="v" style="color:${a.racha >= CC_RACHA_ROJA ? 'var(--red)' : 'var(--yellow)'}">${a.racha}</div><div class="l">${a.racha === 1 ? 'mes seguido pagando' : 'meses seguidos pagando'} menos de lo previsto (racha actual)</div></div></div>`;
+  const maxV = Math.max(...a.meses.map(m => Math.max(m.plan, m.pagado || 0)), 1) * 1.1;
+  const charts = sinPlan ? '' : `<div class="cc-charts">
+    <div><h4>Pago mensual: plan vs. pagado (US$)</h4>
+      <div class="cc-leg"><span><i class="cc-dot" style="background:var(--cc-plan)"></i>Plan (línea base; proyectado vigente en meses futuros)</span><span><i class="cc-dot" style="background:var(--green)"></i>Pagado en ritmo</span><span><i class="cc-dot" style="background:var(--yellow)"></i>Más de 20% por debajo</span><span><i class="cc-dot" style="background:var(--cc-over)"></i>Más de 20% por encima</span><span><i class="cc-dot" style="background:var(--red)"></i>Racha de 3+ meses bajo el plan</span></div>
+      ${ccBarChart(a, maxV)}</div>
+    <div><h4>Curva acumulada ${a.year} (US$)</h4>
+      <div class="cc-leg"><span><i class="cc-dot" style="background:var(--muted)"></i>Plan acumulado</span><span><i class="cc-dot" style="background:var(--accent)"></i>Pagado acumulado</span></div>
+      ${ccLineChart(a)}${ccAlertas(a)}</div></div>`;
+  return `<div class="cc-card" id="cc-${ccEsc(c.id)}">
+    <div class="cc-head"><div><div class="cc-eyebrow">${ccEsc(op)} · Contrato crítico</div><h3>${ccEsc(c.obra)} · ${ccEsc(c.id.slice(op.length + 1))}</h3></div>
+      <span class="pill ${est.pill}">${est.txt}</span></div>
+    <div class="cc-chips">${chips}</div>
+    <div class="cc-strip">${strip}</div>
+    <div class="cc-msg">${ccEsc(ccMensaje(a))}</div>
+    ${kpis}${charts}${ccTablaCausas(c, a, causas)}</div>`;
+}
+
+function renderContratosCriticos(wb) {
+  const lista = document.getElementById('cc-lista'), mon = document.getElementById('cc-monitoreo');
+  if (!lista || !mon) return;
+  const manual = parseContratosCriticosSheet(wb);
+  const causas = ccCausasMap(wb);
+  const ops = Object.keys(_flujoData);
+  if (!ops.length) {
+    const msg = '<div class="cc-note">Sin datos todavía: falta el Excel del MS Project en <code>flujo_mensual/</code> o la operación en la hoja <code>contratos_criticos</code>.</div>';
+    lista.innerHTML = msg; mon.innerHTML = '';
+    document.getElementById('badge-cc').textContent = '—';
+    return;
+  }
+  // Une la información de cada contrato con lo manual (contrato > operación > Detalle).
+  const items = [];
+  ops.forEach(op => {
+    const d = _flujoData[op];
+    const opRow = manual.find(m => m.operacion === op && !m.contrato) || {};
+    d.contratos.forEach(c => {
+      const m = manual.find(x => x.contrato === c.id) || {};
+      items.push({
+        c, op, corte: d.corte, a: ccAnalizar(c, d.corte),
+        sector: m.sector || opRow.sector || '',
+        estado: m.estado || c.estadoAdq || '',
+        falta: m.falta != null && m.falta !== '' ? m.falta : (opRow.falta != null && opRow.falta !== '' ? opRow.falta : null),
+        desc: m.descripcion || (c.obra + (c.nombre && c.nombre !== c.obra ? ' · ' + c.nombre : '')),
+      });
+    });
+  });
+  items.sort((x, y) => y.c.total - x.c.total);
+
+  const total = items.reduce((a, i) => a + i.c.total, 0);
+  const porOp = {};
+  items.forEach(i => { porOp[i.op] = (porOp[i.op] || 0) + 1; });
+  const opsTxt = Object.entries(porOp).map(([o, n]) => `${o}: ${n}`).join(' · ');
+  const filas = items.map(i => `<tr class="cc-row" onclick="document.getElementById('cc-${ccEsc(i.c.id)}').scrollIntoView({behavior:'smooth',block:'start'})">
+    <td style="white-space:nowrap">${ccEsc(i.c.id)}</td><td>${ccEsc(i.op)}</td>
+    <td>${i.sector ? `<span class="cc-tag">${ccEsc(i.sector)}</span>` : '—'}</td>
+    <td>${ccEsc(i.desc)}</td><td class="cc-num">${(i.c.total / 1e6).toFixed(1)}</td>
+    <td>${ccEsc(i.estado) || '—'}</td><td class="cc-num">${i.falta != null ? Number(i.falta).toFixed(1) : '—'}</td></tr>`).join('');
+  lista.innerHTML = `<p class="cc-lead"><b>${items.length} ${items.length === 1 ? 'contrato crítico' : 'contratos críticos'} a seguir</b> por US$${(total / 1e6).toFixed(1)} M (${ccEsc(opsTxt)}).</p>
+    <p class="cc-note">Contratos críticos de las operaciones de Costa Rica, tomados del PEP-SMART (MS Project): son los que hay que seguir mes a mes con las unidades ejecutoras. De mayor a menor monto. Monto total del contrato (pagado + proyectado) en US$ millones. Haga clic en una fila para ir a su monitoreo.</p>
+    <div class="table-wrap"><table><thead><tr><th>Contrato</th><th>Operación</th><th>Sector</th><th>Descripción</th><th class="cc-num">Monto</th><th>Estado</th><th class="cc-num">Falta a la operación 2026</th></tr></thead><tbody>${filas}</tbody></table></div>`;
+
+  const cortes = [...new Set(items.map(i => i.corte).filter(Boolean))];
+  const corteTxt = cortes.length ? ccMesLabel(cortes.sort().slice(-1)[0]) : '—';
+  const intro = `<div class="cc-intro"><div class="cc-eyebrow">Monitoreo mensual de contratos críticos</div>
+    <h3>¿Se está pagando al ritmo previsto?</h3>
+    <div class="cc-note" style="margin-bottom:0">Cada mes se compara lo que la unidad ejecutora pagó (Ejecutado en el MS Project) con la línea base del PEP-SMART para ese mes; en los meses que aún no transcurren se muestra lo proyectado vigente. Datos del PEP con ejecución real hasta ${ccEsc(corteTxt)}. Mide pagos de la unidad ejecutora, no desembolsos del Banco.</div>
+    <div class="cc-legend">
+      <div><b><i class="cc-dot" style="background:var(--green)"></i>En ritmo</b>el pago del mes está dentro de ±20% de lo prometido</div>
+      <div><b><i class="cc-dot" style="background:var(--yellow)"></i>Alerta amarilla</b>el pago del mes queda más de 20% por debajo de lo prometido</div>
+      <div><b><i class="cc-dot" style="background:var(--cc-over)"></i>Por encima, sin alerta</b>se pagó más de 20% por encima de lo prometido; señal para actualizar el plan</div>
+      <div><b><i class="cc-dot" style="background:var(--red)"></i>Alerta roja</b>3 meses consecutivos pagando menos de lo previsto</div>
+      <div><b><i class="cc-dot" style="background:var(--border)"></i>Sin plan</b>no hay plan mensual para comparar</div></div></div>`;
+  mon.innerHTML = intro + items.filter(i => i.a).map(i => ccBloque(i.c, i.a, causas)).join('');
+  const nAlerta = items.filter(i => i.a && (i.a.estado === 'yellow' || i.a.estado === 'red')).length;
+  const badge = document.getElementById('badge-cc');
+  badge.textContent = String(nAlerta);
+  badge.className = 'badge ' + (items.some(i => i.a && i.a.estado === 'red') ? 'badge-red' : 'badge-yellow');
+}
+
 // ── Iniciar carga al abrir la pagina ──
 fetchExcel(false);
 
@@ -1317,6 +1751,7 @@ function renderAll(wb, csvText) {
   renderResumen(wb, csvText || '');
   renderAcuerdos();
   renderResumenAcuerdos();
+  renderContratosCriticos(wb);
 }
 
 function renderClausulasV(wb, csvText) {
