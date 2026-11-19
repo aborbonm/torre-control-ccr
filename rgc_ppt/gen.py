@@ -758,7 +758,9 @@ def generate(op, outpath):
     for cols in colpages:
         allids = set(x for c in cols for x in c)
         prs_ = [p for p in S['prods'] if set(S['prod_inds'].get(p['prod'], [])) & allids]
-        for i in range(0, max(1, len(prs_)), 6): mpages.append((cols, prs_[i:i + 6]))
+        # hasta 5 productos por lámina, repartidos en partes iguales (6 filas de nombres largos no caben sobre la leyenda)
+        npg = max(1, math.ceil(len(prs_) / 5)); size = max(1, math.ceil(len(prs_) / npg))
+        for i in range(0, max(1, len(prs_)), size): mpages.append((cols, prs_[i:i + size]))
     plan[12] = max(1, len(mpages))
     for k in (9, 10, 13, 14):
         if k in pages: plan[k] = len(pages[k])
