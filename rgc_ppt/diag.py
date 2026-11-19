@@ -105,28 +105,37 @@ def val(v):
 UNIT = re.compile(r'\s*\[([^\]]+)\]\s*$')
 
 def plan(S):
-    """One page per chunk of <=7 indicators (and <=5 products) per objective."""
+    """Láminas por objetivo. Cada indicador aparece en una sola lámina, con todos sus productos críticos.
+    Los indicadores se agrupan (<=7 por lámina, <=5 productos) buscando la lámina que menos productos nuevos sume;
+    un producto que sostiene indicadores de dos láminas se repite en ambas, y en cada una solo se dibujan
+    las líneas hacia los indicadores de esa lámina. Los indicadores sin producto van en la primera lámina (sin líneas)."""
     pages = []
     objs = list(dict.fromkeys(r['obj_id'] for r in S['res']))
     for o in objs:
         rs = [r for r in S['res'] if r['obj_id'] == o]
-        n = math.ceil(len(rs) / MAX_IND); size = math.ceil(len(rs) / n)
-        chunks = [rs[i:i + size] for i in range(0, len(rs), size)]
+        order = {p['prod']: i for i, p in enumerate(S['prods'])}
+        pp_of = {r['ind_id']: [p['prod'] for p in S['prods'] if r['ind_id'] in S['prod_inds'].get(p['prod'], [])] for r in rs}
+        groups = []  # [inds, set(prods)]
+        for r in rs:
+            mine = set(pp_of[r['ind_id']])
+            if len(mine) > MAX_PROD:  # un indicador con más de 5 productos: sus productos se reparten en varias láminas
+                ps = sorted(mine, key=order.get)
+                for i in range(0, len(ps), MAX_PROD): groups.append([[r], set(ps[i:i + MAX_PROD])])
+                continue
+            best = None
+            for g in groups:
+                if len(g[0]) >= MAX_IND or any(len(pp_of[x['ind_id']]) > MAX_PROD for x in g[0]): continue
+                add = len(mine - g[1])
+                if len(g[1] | mine) <= MAX_PROD and (best is None or add < best[0]): best = (add, g)
+            if best: best[1][0].append(r); best[1][1].update(mine)
+            else: groups.append([[r], set(mine)])
         sub = []
-        for ch in chunks:
-            ids = {r['ind_id'] for r in ch}
-            ps = [p for p in S['prods'] if set(S['prod_inds'].get(p['prod'], [])) & ids]
-            # order products by the first indicator they serve, so lines cross as little as possible
-            first = {p['prod']: min(i for i, r in enumerate(ch) if r['ind_id'] in S['prod_inds'].get(p['prod'], [])) for p in ps}
-            ps.sort(key=lambda p: first[p['prod']])
-            for i in range(0, max(1, len(ps)), MAX_PROD):
-                pp = ps[i:i + MAX_PROD]
-                # en cada lámina solo van los indicadores con línea hacia algún producto de esa lámina; los que no tienen
-                # ningún producto en todo el objetivo se muestran en la primera lámina (sin líneas) para que se vea el vacío
-                linked = {x for p in pp for x in S['prod_inds'].get(p['prod'], [])}
-                huerfanos = [r for r in ch if not any(r['ind_id'] in S['prod_inds'].get(p['prod'], []) for p in ps)]
-                ii = [r for r in ch if r['ind_id'] in linked or (i == 0 and r in huerfanos)]
-                sub.append((ii or ch, pp))
+        for inds, prods in groups:
+            inds = [r for r in rs if r in inds]
+            ps = [p for p in S['prods'] if p['prod'] in prods]
+            first = {p['prod']: min((i for i, r in enumerate(inds) if r['ind_id'] in S['prod_inds'].get(p['prod'], [])), default=99) for p in ps}
+            ps.sort(key=lambda p: (first[p['prod']], order[p['prod']]))
+            sub.append((inds, ps))
         for k, (ch, ps) in enumerate(sub): pages.append(dict(obj=o, inds=ch, prods=ps, k=k, n=len(sub)))
     return pages
 

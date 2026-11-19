@@ -24,5 +24,7 @@ Reglas de cálculo incorporadas (sesión previa CR-J0002, 16/11/2026):
   o, si no hay, el estimado, x % BID; misma base que Cartera Inteligente) y la suma de sus contratos (Raw Data + Contracts
   and Amendments, sin rescindidos). Los procesos con varias filas cuentan el contrato una sola vez. "Otros costos" del plan
   se asocia al componente de administración de CI. Si el resultado es menor que lo desembolsado, la lámina queda con [__].
-- Diagrama por objetivo: cada lámina muestra solo los indicadores con línea hacia algún producto de esa lámina.
+- Diagrama por objetivo: cada indicador aparece en una sola lámina, con todos sus productos críticos; si un producto
+  sostiene indicadores de dos láminas, se repite en ambas y en cada una solo lleva las líneas de esa lámina (comentario
+  sobre la presentación de CR-J0002, 19/11/2026).
 - Productos logrados: sin riesgo de atraso en el detalle ni en el diagrama.
