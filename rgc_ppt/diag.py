@@ -63,6 +63,42 @@ def line(s, x1, y1, x2, y2, w=2.5):
     c.line.color.rgb = RGBColor.from_string(C_LINE); c.line.width = Pt(w)
     return c
 
+LANE_MIN, LANE_GAP = 8, 14   # carriles verticales entre la meta y el producto
+def links(s, S, inds, prods, yc, pyc):
+    """Líneas indicador -> producto en ángulo recto, como en los diagramas del equipo de proyecto: los productos que
+    sostienen el mismo conjunto de indicadores comparten un carril vertical (bus); cada indicador entra al carril con
+    una línea horizontal y cada producto sale de él. Un punto marca cada unión, para distinguir una unión de un cruce.
+    Si hay más carriles de los que caben, se usan líneas rectas."""
+    ids = [r['ind_id'] for r in inds]
+    groups = {}
+    for p in prods:
+        key = tuple(i for i in ids if i in S['prod_inds'].get(p['prod'], []))
+        if key: groups.setdefault(key, []).append(p['prod'])
+    x0, x1 = X_META + W_VAL, X_PROD
+    nl = len(groups)
+    if nl == 0: return
+    if (x1 - x0 - 2 * LANE_MIN) / max(1, nl - 1) < 7 and nl > 1:
+        for key, ps in groups.items():
+            for i in key:
+                for q in ps: line(s, x0, yc[i], x1, pyc[q])
+        return
+    gap = min(LANE_GAP, (x1 - x0 - 2 * LANE_MIN) / max(1, nl - 1))
+    span = gap * (nl - 1); start = (x0 + x1) / 2 - span / 2
+    # carril más a la izquierda para el grupo con más indicadores (sus líneas horizontales son las más cortas)
+    order = sorted(groups.items(), key=lambda kv: (-len(kv[0]), min(pyc[q] for q in kv[1])))
+    for k, (key, ps) in enumerate(order):
+        x = start + k * gap
+        ys = [yc[i] for i in key] + [pyc[q] for q in ps]
+        line(s, x, min(ys), x, max(ys), w=1.75)
+        for i in key:
+            line(s, x0, yc[i], x, yc[i], w=1.75); dot(s, x, yc[i])
+        for q in ps:
+            line(s, x, pyc[q], x1, pyc[q], w=1.75); dot(s, x, pyc[q])
+
+def dot(s, x, y, d=5):
+    sh = s.shapes.add_shape(MSO_SHAPE.OVAL, E(x - d / 2), E(y - d / 2), E(d), E(d)); _nostyle(sh)
+    sh.fill.solid(); sh.fill.fore_color.rgb = RGBColor.from_string('7F7F7F'); sh.line.fill.background()
+
 def circle(s, x, y, d, fill):
     sh = s.shapes.add_shape(MSO_SHAPE.OVAL, E(x), E(y), E(d), E(d)); _nostyle(sh)
     sh.fill.solid(); sh.fill.fore_color.rgb = RGBColor.from_string(fill)
@@ -159,7 +195,13 @@ def risk_list(S, p):
     return out
 
 def draw(s, S, page, set_title):
+    global X_BASE, X_META, W_IND
     inds, prods = page['inds'], page['prods']
+    # con 3 o más carriles de líneas, se angostan los indicadores para dar espacio entre la meta y los productos
+    ids = [r['ind_id'] for r in inds]
+    nl = len({tuple(i for i in ids if i in S['prod_inds'].get(p['prod'], [])) for p in prods} - {()})
+    dx = 34 if nl >= 3 else 0
+    X_BASE, X_META, W_IND = 300 - dx, 368 - dx, 222 - dx
     ALLP = [q['prod'] for q in S['prods']]; ALLA = [a for a in (adq_text(S, q) for q in S['prods']) if a]
     obj = inds[0]['obj']
     suf = f" ({page['k'] + 1} de {page['n']})" if page['n'] > 1 else ''
@@ -175,7 +217,7 @@ def draw(s, S, page, set_title):
     units = {(UNIT.search(r['ind'] or '') or [None, ''])[1] for r in inds}
     unit = units.pop() if len(units) == 1 else ''
     # header band
-    box(s, 290, 136 + dy, 715, 36, C_HDR, radius=0.25)
+    box(s, 290 - dx, 136 + dy, 715 + dx, 36, C_HDR, radius=0.25)
     hdr = [(X_BASE, W_VAL, ['Línea base'] + ([f'[{unit}]'] if unit else [])), (X_META, W_VAL, ['Meta'] + ([f'[{unit}]'] if unit else [])),
            (X_PROD, W_PROD, ['Producto crítico']), (X_ADQ, W_ADQ, ['Adquisiciones / procesos críticos']), (X_RSK, W_RSK, ['Riesgos'])]
     for x, w, ps in hdr:
@@ -195,9 +237,7 @@ def draw(s, S, page, set_title):
     for r in inds:
         c = yc[r['ind_id']]
         line(s, X_IND + W_IND, c, X_META + W_VAL, c)
-        for p in prods:
-            if r['ind_id'] in S['prod_inds'].get(p['prod'], []):
-                line(s, X_META + W_VAL, c, X_PROD, pyc[p['prod']])
+    links(s, S, inds, prods, yc, pyc)
     for p in prods:
         c = pyc[p['prod']]
         if adq_text(S, p): line(s, X_PROD + W_PROD, c, X_ADQ, c)

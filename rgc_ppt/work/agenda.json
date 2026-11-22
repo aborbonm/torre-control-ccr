@@ -67,13 +67,7 @@
    "tipo": "Pendiente de aprobación"
   }
  },
- "manual": {
-  "3071/OC-CR": {
-   "ultimo": "11/NOV/2029",
-   "ext": 36,
-   "_motivo": "prórroga aprobada 05/11/2026"
-  }
- },
+ "manual": {},
  "supuestos": {
   "_nota": "Supuestos de análisis por operación que no son datos oficiales; el generador los rotula en la lámina. ext_meses: extensión supuesta del plazo de último desembolso para el ritmo requerido (lámina 5).",
   "CR-J0002": {

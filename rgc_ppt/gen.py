@@ -641,7 +641,7 @@ def extension(S):
     exp = pdate(L['ultimo']); months = (exp - S['corte']).days / 30.4; pp = L['pendiente'] / L['vigente'] * 100 if L['vigente'] else 0
     post = [f for f in S['d'].get('fins', []) if dt.datetime.strptime(f['fin'], '%d/%m/%Y') > exp]
     pmr_txt = (S['pmr'].get('status', '') + ' ' + S['pmr'].get('likelihood', '')).lower()
-    pmr_flag = bool(re.search(r'prórroga|prorroga|extensi[oó]n del plazo|ampliaci[oó]n del plazo|requerir[aá] (una )?extensi', pmr_txt)) and L['prestamo'] not in MANUAL
+    pmr_flag = bool(re.search(r'prórroga|prorroga|extensi[oó]n del plazo|ampliaci[oó]n del plazo|requerir[aá] (una )?extensi', pmr_txt)) and L['prestamo'] not in MANUAL and not (L.get('ext') or 0)
     reasons = []
     if months < 12 and pp > 15: reasons.append(f'{round(pp)} % sin desembolsar')
     if post: reasons.append(f"{len(post)} {'contrato termina' if len(post) == 1 else 'contratos terminan'} después")
