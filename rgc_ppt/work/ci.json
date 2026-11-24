@@ -132,14 +132,7 @@
    }
   ]
  },
- "CR-L1139": {"oe": "Ministerio de Obras Públicas y Transportes", "pmr": "2.85", "tipo": "Préstamo",
-  "loans": [{"prestamo": "4864/OC-CR", "aprob": "20/SEP/2019", "efect": "29/SEP/2020", "eleg": "17/DIC/2020", "primer": "28/JUN/2021",
-   "ultimo": "29/SEP/2027", "ext": 24, "plazo": 84, "transc": 74, "pend": 10, "vigente": 125000000, "desemb": 105500000, "pct": 84, "pendiente": 19500000,
-   "ult_realizado": "21/OCT/2026", "proximo": "31/MAR/2027", "amb": ["B", "Alto", "Parcialmente insatisfactorio"],
-   "anual": 24000000, "anual_desemb": 24000000, "anual_pct": 100, "anual_pend": 0,
-   "antic": [14000000, "21/OCT/2026", 180, "19/ABR/2027"], "justif": [4750710.4, "20/OCT/2026"], "saldo": 18451987.1, "pct_just": 60, "min_desemb": 11071192.2, "habilitado": false,
-   "comp": [["Administración, gestión y auditoría", 2217180.8, 1562177.5], ["Infraestructura", 83774026.3, 34186615.4], ["Desarrollo de capacidades institucionales", 1056805.9, 2203194.1]],
-   "adq": {"clasif": "1.00", "exp_n": 0, "exp_usd": 0, "compras": 100, "plan": 93699901.9, "contratado": 93419901.9, "pendiente": 280000}}]},
+ "CR-L1139": {"fecha": "2026-11-20", "oe": "Ministerio de Obras Públicas y Transportes", "pmr": "2.85", "tipo": "Préstamo", "loans": [{"prestamo": "4864/OC-CR", "aprob": "20/SEP/2019", "efect": "29/SEP/2020", "eleg": "17/DIC/2020", "primer": "28/JUN/2021", "ultimo": "29/SEP/2027", "ext": 24, "plazo": 84, "transc": 74, "pend": 10, "vigente": 125000000, "desemb": 105500000, "pct": 84, "pendiente": 19500000, "ult_realizado": "21/OCT/2026", "proximo": "31/MAR/2027", "amb": ["B", "Alto", "Parcialmente satisfactorio"], "anual": 24000000, "anual_desemb": 24000000, "anual_pct": 100, "anual_pend": 0, "antic": [14000000, "21/OCT/2026", 180, "19/ABR/2027"], "justif": [4750710.4, "20/OCT/2026"], "saldo": 18451987.1, "pct_just": 60, "min_desemb": 11071192.2, "habilitado": false, "comp": [["Administración, gestión y auditoría", 2217180.8, 1562177.5], ["Infraestructura", 83774026.3, 34186615.4], ["Desarrollo de capacidades institucionales", 1056805.9, 2203194.1]], "adq": {"clasif": "1.00", "exp_n": 0, "exp_usd": 0, "compras": 100, "plan": 94512253.9, "contratado": 94262253.9, "pendiente": 250000}}]},
  "CR-L1157": {"fecha": "2026-11-12", "oe": "Instituto Costarricense de Electricidad", "pmr": "N/A", "tipo": "Préstamo",
   "loans": [{"prestamo": "6061/OC-CR", "aprob": "31/OCT/2025", "efect": "09/ABR/2026", "eleg": "06/OCT/2026", "primer": "-",
    "ultimo": "09/ABR/2032", "ext": 0, "plazo": 72, "transc": 7, "pend": 65, "vigente": 200000000, "desemb": 0, "pct": 0, "pendiente": 200000000,
